@@ -3,16 +3,17 @@
 import { useActionState, useMemo, useState } from "react";
 import { ReciboHoja } from "@/componentes/ReciboHoja";
 import { calcularRecibo, type ExtraCaptura } from "@/lib/calculo";
-import { semanaDe, sumarDias } from "@/lib/fechas";
+import { sumarDias } from "@/lib/fechas";
 import { dinero } from "@/lib/formato";
+import { cantidadSugerida, periodoSugerido } from "@/lib/programa";
 import { FORMAS_PAGO, UNIDADES, type Adelanto, type Trabajador } from "@/lib/tipos";
 import { crearRecibo, type EstadoFormulario } from "../acciones";
 
 const NOMBRE_DIA = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-function periodoInicial(t: Trabajador | undefined, hoy: string) {
-  if (t?.forma_pago === "semana") return semanaDe(hoy);
-  return { inicio: hoy, fin: hoy };
+function cantidadInicial(t: Trabajador | undefined) {
+  const c = t ? cantidadSugerida(t) : null;
+  return c === null ? "" : String(c);
 }
 
 function diasDelPeriodo(inicio: string, fin: string): string[] {
@@ -30,22 +31,23 @@ export function FormularioRecibo({
   trabajadores,
   adelantos,
   inicial,
-  hoy,
+  fecha,
   entrego,
 }: {
   trabajadores: Trabajador[];
   adelantos: Adelanto[];
   inicial?: string;
-  hoy: string;
+  /** Día en que se paga: hoy, o el que viene de la vista de Hoy. */
+  fecha: string;
   entrego: string;
 }) {
   const primero = trabajadores.find((t) => t.id === inicial);
   const [trabajadorId, setTrabajadorId] = useState(primero?.id ?? "");
-  const p0 = periodoInicial(primero, hoy);
+  const p0 = periodoSugerido(primero, fecha);
   const [inicio, setInicio] = useState(p0.inicio);
   const [fin, setFin] = useState(p0.fin);
-  const [fechaPago, setFechaPago] = useState(hoy);
-  const [cantidad, setCantidad] = useState(primero?.forma_pago === "semana" ? "1" : "");
+  const [fechaPago, setFechaPago] = useState(fecha);
+  const [cantidad, setCantidad] = useState(cantidadInicial(primero));
   const [diasMarcados, setDiasMarcados] = useState<string[]>([]);
   const [extras, setExtras] = useState<ExtraCaptura[]>([]);
   const [adelantosSel, setAdelantosSel] = useState<string[]>([]);
@@ -60,10 +62,10 @@ export function FormularioRecibo({
   function escogerTrabajador(id: string) {
     const nuevo = trabajadores.find((x) => x.id === id);
     setTrabajadorId(id);
-    const p = periodoInicial(nuevo, hoy);
+    const p = periodoSugerido(nuevo, fecha);
     setInicio(p.inicio);
     setFin(p.fin);
-    setCantidad(nuevo?.forma_pago === "semana" ? "1" : "");
+    setCantidad(cantidadInicial(nuevo));
     setDiasMarcados([]);
     setAdelantosSel([]);
   }

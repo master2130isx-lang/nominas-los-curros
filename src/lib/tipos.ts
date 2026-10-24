@@ -2,6 +2,7 @@ export type Rol = "admin" | "encargado";
 export type TipoTrabajador = "formal" | "informal_turno" | "informal_tarea" | "informal_semana";
 export type FormaPago = "hora" | "turno" | "dia" | "tarea" | "semana";
 export type EstadoRecibo = "sin_firma" | "firmado" | "cancelado";
+export type PagoCuando = "dia_semana" | "cada_dia" | "al_terminar";
 export type TipoConcepto = "trabajo" | "pasaje" | "extra" | "adelanto" | "prestamo" | "otro";
 
 export interface Perfil {
@@ -19,13 +20,17 @@ export interface Trabajador {
   forma_pago: FormaPago;
   tarifa: number;
   pasaje: number;
-  dia_pago: string | null;
+  pago_cuando: PagoCuando;
+  /** 1 = lunes … 7 = domingo */
+  pago_dia_semana: number | null;
+  dias_trabajo: number[];
   horario: string | null;
   telefono: string | null;
   curp: string | null;
   fecha_ingreso: string | null;
   notas: string | null;
   activo: boolean;
+  creado_en: string;
 }
 
 export interface Recibo {

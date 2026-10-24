@@ -79,3 +79,51 @@ export async function registrarImpresion(ids: string[]): Promise<void> {
   const { supabase } = await requerirSesion();
   await supabase.rpc("registrar_impresion", { p_recibos: ids });
 }
+
+export interface EstadoLote {
+  error: string | null;
+  creados: number;
+}
+
+interface FilaLoteDatos {
+  trabajadorId: string;
+  periodoInicio: string;
+  periodoFin: string;
+  fechaPago: string;
+  cantidad: number;
+}
+
+/** Varios recibos sin extras de una vez (la vista de Hoy); al terminar abre la impresión. */
+export async function crearLote(_previo: EstadoLote, form: FormData): Promise<EstadoLote> {
+  const { supabase } = await requerirSesion();
+  let filas: FilaLoteDatos[];
+  try {
+    filas = JSON.parse(String(form.get("datos")));
+  } catch {
+    return { error: "No se pudieron leer los datos.", creados: 0 };
+  }
+  if (!Array.isArray(filas) || filas.length === 0) return { error: "Escoge al menos a un trabajador.", creados: 0 };
+
+  const ids: string[] = [];
+  for (const f of filas) {
+    if (![f.periodoInicio, f.periodoFin, f.fechaPago].every(esFecha) || !(f.cantidad > 0)) {
+      return { error: "Revisa las cantidades.", creados: ids.length };
+    }
+    const { data, error } = await supabase
+      .rpc("crear_recibo", {
+        p_trabajador_id: f.trabajadorId,
+        p_periodo_inicio: f.periodoInicio,
+        p_periodo_fin: f.periodoFin,
+        p_fecha_pago: f.fechaPago,
+        p_cantidad: f.cantidad,
+      })
+      .single<{ id: string }>();
+    if (error || !data) {
+      revalidatePath("/");
+      return { error: error?.message ?? "No se pudo guardar un recibo.", creados: ids.length };
+    }
+    ids.push(data.id);
+  }
+  revalidatePath("/");
+  redirect(`/imprimir?ids=${ids.join(",")}`);
+}
