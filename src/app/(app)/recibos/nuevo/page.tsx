@@ -21,7 +21,7 @@ export default async function NuevoRecibo({
       <div className="encabezado">
         <div>
           <h1>Nuevo recibo</h1>
-          <div className="sub">Captura lo trabajado; el recibo se arma solo a la derecha.</div>
+          <div className="sub">Captura lo trabajado y el recibo se arma solo mientras escribes.</div>
         </div>
         <Link className="boton chico" href="/">
           Volver a la semana
