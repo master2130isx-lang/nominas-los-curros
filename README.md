@@ -11,6 +11,15 @@ Hecha con Next.js (en Vercel) y Supabase (base de datos, cuentas y fotos de reci
   avisa de pagos que se quedaron pendientes en días anteriores.
 - **Semana** (lunes a domingo): quién ya cobró, quién falta, total pagado y recibos sin foto firmada,
   agrupado por día de pago.
+- **Faltas**: se marcan desde Pagos del día ("¿Quién faltó?") o desde Faltas: sin aviso, permiso sin goce o
+  justificada con pago, de día completo o medio día. En los de semana fija entran solas al recibo: las que se
+  descuentan restan el sueldo semanal ÷ días pactados (con 6 días y 1 de descanso es el salario diario, semanal ÷ 7,
+  más la parte proporcional del descanso, LFT art. 69 y 72) y las justificadas salen como nota de $0. Avisa cuando
+  alguien junta 3 faltas sin aviso en 30 días (art. 47 fr. X).
+- **Jornada y salario mínimo**: en cada trabajador se anotan las horas por día pactadas; la plataforma muestra su
+  salario diario, cuánto descuenta una falta y cómo queda su pago por hora frente al mínimo proporcional.
+- **Constancia de condiciones de trabajo** (art. 24 y 25): se imprime desde el trabajador, se firma una vez y se
+  sube la foto.
 - **Nuevo recibo**: escoges al trabajador, marcas los días o escribes horas, turnos o tareas, agregas extras o
   descuentos con su motivo y descuentas adelantos. El recibo se arma en pantalla mientras capturas.
 - **Folio consecutivo**: lo asigna la base de datos al guardar; no se repite ni se salta.
@@ -34,6 +43,7 @@ Hecha con Next.js (en Vercel) y Supabase (base de datos, cuentas y fotos de reci
    - `supabase/migrations/20261024000000_inicial.sql`
    - `supabase/migrations/20261024000001_almacenamiento.sql`
    - `supabase/migrations/20261025000000_dia_de_pago.sql`
+   - `supabase/migrations/20261026000000_faltas.sql`
 
    Cada vez que se agrega un archivo nuevo en `supabase/migrations`, hay que correrlo una vez en el
    SQL Editor (solo el nuevo, en orden de nombre).

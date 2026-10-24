@@ -57,3 +57,42 @@
   .pliego { margin: 0; page-break-after: always; break-after: page; }
   .pliego:last-child { page-break-after: auto; break-after: auto; }
 }
+
+/* Constancia de condiciones de trabajo: una hoja carta completa */
+.pagina-carta {
+  width: 8.5in;
+  min-height: 11in;
+  margin: 0 auto 24px;
+  padding: 0.7in 0.8in;
+  background: #fff;
+  color: #141b2d;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pagina-carta .cabeza { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #141b2d; padding-bottom: 10px; }
+.pagina-carta .negocio strong { display: block; font-size: 18px; }
+.pagina-carta .negocio span { color: #4a5468; }
+.pagina-carta .folio { text-align: right; }
+.pagina-carta .folio strong { font-size: 16px; }
+.pagina-carta .copia-de { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #4a5468; }
+.pagina-carta p { margin: 0; }
+.pagina-carta table { width: 100%; border-collapse: collapse; }
+.pagina-carta th { text-align: left; width: 34%; padding: 6px 10px 6px 0; vertical-align: top; font-weight: 600; border-bottom: 1px solid #dfe3ea; }
+.pagina-carta td { padding: 6px 0; border-bottom: 1px solid #dfe3ea; }
+.pagina-carta .firmas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; margin-top: auto; padding-top: 70px; }
+.pagina-carta .firmas div { border-top: 1px solid #141b2d; padding-top: 6px; text-align: center; }
+
+.fondo-impresion { padding: 24px 16px; background: var(--fondo); min-height: 100vh; }
+
+@media print {
+  .fondo-impresion { padding: 0; min-height: 0; background: #fff; }
+  .pagina-carta { margin: 0; height: 11in; min-height: 0; overflow: hidden; break-after: page; page-break-after: always; }
+  .pagina-carta:last-child { break-after: auto; page-break-after: auto; }
+}
+@media screen and (max-width: 900px) {
+  .pagina-carta { width: 100%; min-height: 0; padding: 24px 18px; }
+}

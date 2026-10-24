@@ -4,6 +4,8 @@ import {
   diaIso,
   grupoPago,
   leTocaCobrar,
+  cobraEseDia,
+  faltasSinAviso30,
   pendientesAnteriores,
   periodoSugerido,
   reciboQueCubre,
@@ -58,5 +60,29 @@ describe("programa de pagos", () => {
   it("no cuenta pendientes de antes de que se diera de alta", () => {
     const p = pendientesAnteriores([{ ...caro, alta: "2026-10-18" }], [], "2026-10-24");
     expect(p.map((x) => x.fecha)).toEqual(["2026-10-18"]);
+  });
+});
+
+describe("faltas en la vista del día", () => {
+  const falta = (trabajador_id: string, fecha: string, tipo = "sin_aviso", fraccion = 1) => ({ trabajador_id, fecha, tipo, fraccion });
+
+  it("con falta completa ya no le toca recibo a quien cobra por día, pero sí a los de semana", () => {
+    expect(cobraEseDia(caro, [falta("k", "2026-10-24")], "2026-10-24")).toBe(false);
+    expect(cobraEseDia(caro, [falta("k", "2026-10-24", "sin_aviso", 0.5)], "2026-10-24")).toBe(true);
+    const celiaMartes = "2026-10-27";
+    expect(cobraEseDia(celia, [falta("c", celiaMartes)], celiaMartes)).toBe(true);
+  });
+
+  it("una falta quita el día de los pendientes", () => {
+    const p = pendientesAnteriores([caro], [], "2026-10-24", [falta("k", "2026-10-18", "justificada")]);
+    expect(p.map((x) => x.fecha)).toEqual(["2026-10-17"]);
+  });
+
+  it("cuenta las faltas sin aviso de los últimos 30 días", () => {
+    const c = faltasSinAviso30(
+      [falta("k", "2026-09-24"), falta("k", "2026-09-25"), falta("k", "2026-10-10"), falta("k", "2026-10-20", "justificada"), falta("k", "2026-10-24")],
+      "2026-10-24",
+    );
+    expect(c.get("k")).toBe(3);
   });
 });

@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { ReciboHoja } from "@/componentes/ReciboHoja";
 import { calcularRecibo, type ExtraCaptura } from "@/lib/calculo";
+import { TIPOS_FALTA, type Falta } from "@/lib/tipos";
 import { sumarDias } from "@/lib/fechas";
 import { dinero } from "@/lib/formato";
 import { cantidadSugerida, periodoSugerido } from "@/lib/programa";
@@ -30,12 +31,15 @@ function etiquetaDia(iso: string) {
 export function FormularioRecibo({
   trabajadores,
   adelantos,
+  faltas,
   inicial,
   fecha,
   entrego,
 }: {
   trabajadores: Trabajador[];
   adelantos: Adelanto[];
+  /** Faltas que todavía no están en un recibo. */
+  faltas: Falta[];
   inicial?: string;
   /** Día en que se paga: hoy, o el que viene de la vista de Hoy. */
   fecha: string;
@@ -56,6 +60,7 @@ export function FormularioRecibo({
 
   const t = trabajadores.find((x) => x.id === trabajadorId);
   const pendientes = adelantos.filter((a) => a.trabajador_id === trabajadorId);
+  const faltasPeriodo = faltas.filter((f) => f.trabajador_id === trabajadorId && f.fecha >= inicio && f.fecha <= fin);
   const porDias = t?.forma_pago === "dia" || t?.forma_pago === "turno";
   const dias = useMemo(() => (inicio && fin && fin >= inicio ? diasDelPeriodo(inicio, fin) : []), [inicio, fin]);
 
@@ -85,6 +90,9 @@ export function FormularioRecibo({
         cantidad: num > 0 ? num : 0,
         extras: extras.filter((e) => e.descripcion.trim()),
         adelantos: pendientes.filter((a) => adelantosSel.includes(a.id)),
+        faltas: faltasPeriodo,
+        diasTrabajo: t.dias_trabajo,
+        horasDia: t.horas_dia,
       })
     : { lineas: [], total: 0 };
 
@@ -211,6 +219,22 @@ export function FormularioRecibo({
             </div>
           </div>
         </fieldset>
+
+        {t?.forma_pago === "semana" && faltasPeriodo.length > 0 && (
+          <div className="alerta aviso">
+            <strong>Faltas en este periodo</strong> (entran solas al recibo):
+            <ul style={{ margin: "6px 0 0", paddingLeft: 20 }}>
+              {faltasPeriodo.map((f) => (
+                <li key={f.id}>
+                  {f.fecha.split("-").reverse().join("/")} · {f.fraccion < 1 ? "media falta, " : ""}
+                  {TIPOS_FALTA[f.tipo].nombre.toLowerCase()}
+                  {f.nota ? ` · ${f.nota}` : ""}
+                </li>
+              ))}
+            </ul>
+            Si alguna está mal, quítala en <a href="/faltas">Faltas</a> antes de guardar.
+          </div>
+        )}
 
         {pendientes.length > 0 && (
           <fieldset>

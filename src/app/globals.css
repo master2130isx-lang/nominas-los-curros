@@ -181,3 +181,22 @@ fieldset.dias-trabajo legend {
   flex-wrap: wrap;
   gap: 8px 16px;
 }
+
+.marcar-falta { display: inline-block; }
+.marcar-falta > summary { list-style: none; cursor: pointer; }
+.marcar-falta > summary::-webkit-details-marker { display: none; }
+.marcar-falta[open] > summary { background: var(--acento-suave); }
+.marcar-falta > form {
+  margin-top: 8px;
+  padding: 14px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  max-width: 420px;
+  white-space: normal;
+}
+.marcar-falta fieldset { border: 0; padding: 0; margin: 0; }
+.marcar-falta legend { font-weight: 600; margin-bottom: 6px; }
+.opcion { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+.opcion input { margin-top: 4px; }
+.opcion .secundario { display: block; font-size: 13px; color: var(--tenue); font-weight: 400; }

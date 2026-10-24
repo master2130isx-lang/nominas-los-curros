@@ -3,7 +3,8 @@ export type TipoTrabajador = "formal" | "informal_turno" | "informal_tarea" | "i
 export type FormaPago = "hora" | "turno" | "dia" | "tarea" | "semana";
 export type EstadoRecibo = "sin_firma" | "firmado" | "cancelado";
 export type PagoCuando = "dia_semana" | "cada_dia" | "al_terminar";
-export type TipoConcepto = "trabajo" | "pasaje" | "extra" | "adelanto" | "prestamo" | "otro";
+export type TipoConcepto = "trabajo" | "pasaje" | "extra" | "adelanto" | "prestamo" | "otro" | "falta";
+export type TipoFalta = "sin_aviso" | "sin_goce" | "justificada";
 
 export interface Perfil {
   id: string;
@@ -29,6 +30,10 @@ export interface Trabajador {
   curp: string | null;
   fecha_ingreso: string | null;
   notas: string | null;
+  /** Jornada pactada; menos de 8 es jornada reducida. */
+  horas_dia: number | null;
+  constancia_foto_path: string | null;
+  constancia_firmada_en: string | null;
   activo: boolean;
   creado_en: string;
 }
@@ -72,6 +77,24 @@ export interface Adelanto {
   descripcion: string | null;
   recibo_id: string | null;
 }
+
+export interface Falta {
+  id: string;
+  trabajador_id: string;
+  fecha: string;
+  tipo: TipoFalta;
+  /** 1 = día completo, 0.5 = media falta */
+  fraccion: number;
+  nota: string | null;
+  recibo_id: string | null;
+  creado_en: string;
+}
+
+export const TIPOS_FALTA: Record<TipoFalta, { nombre: string; ayuda: string; descuenta: boolean }> = {
+  sin_aviso: { nombre: "Sin aviso (injustificada)", ayuda: "No vino y no dijo nada", descuenta: true },
+  sin_goce: { nombre: "Permiso sin goce de sueldo", ayuda: "Pidió el día y se acordó no pagárselo", descuenta: true },
+  justificada: { nombre: "Justificada, con pago completo", ayuda: "Se acordó pagarle completo", descuenta: false },
+};
 
 export const TIPOS_TRABAJADOR: Record<TipoTrabajador, string> = {
   formal: "Formal",

@@ -83,14 +83,48 @@ export function reciboQueCubre<R extends PeriodoRecibo>(recibos: R[], trabajador
   );
 }
 
+interface FaltaDia {
+  trabajador_id: string;
+  fecha: string;
+  fraccion: number;
+  tipo: string;
+}
+
+export function faltaDe<F extends FaltaDia>(faltas: F[], trabajadorId: string, fecha: string): F | undefined {
+  return faltas.find((f) => f.trabajador_id === trabajadorId && f.fecha === fecha);
+}
+
+/** ¿Faltó el día completo? A los que cobran por día ya no les toca recibo ese día. */
+function faltoCompleto(t: Programa & { id: string }, faltas: FaltaDia[], fecha: string): boolean {
+  return t.pago_cuando !== "dia_semana" && (faltaDe(faltas, t.id, fecha)?.fraccion ?? 0) >= 1;
+}
+
+/** ¿Le toca recibo ese día, contando las faltas? */
+export function cobraEseDia(t: Programa & { id: string }, faltas: FaltaDia[], fecha: string): boolean {
+  return leTocaCobrar(t, fecha) && !faltoCompleto(t, faltas, fecha);
+}
+
+/** Faltas sin aviso por trabajador en los 30 días que terminan en `fecha` (LFT art. 47 fr. X). */
+export function faltasSinAviso30(faltas: FaltaDia[], fecha: string): Map<string, number> {
+  const desde = sumarDias(fecha, -29);
+  const cuenta = new Map<string, number>();
+  for (const f of faltas) {
+    if (f.tipo === "sin_aviso" && f.fecha >= desde && f.fecha <= fecha) {
+      cuenta.set(f.trabajador_id, (cuenta.get(f.trabajador_id) ?? 0) + 1);
+    }
+  }
+  return cuenta;
+}
+
 /**
- * Días anteriores (hasta `dias` atrás) en que le tocaba cobrar y no tiene recibo.
- * No cuenta días antes de `alta` (cuando se dio de alta en la plataforma).
+ * Días anteriores (hasta `dias` atrás) en que le tocaba cobrar y no tiene recibo
+ * ni falta completa. No cuenta días antes de `alta` (cuando se dio de alta en la plataforma).
  */
 export function pendientesAnteriores<T extends Programa & { id: string; alta?: string }>(
   trabajadores: T[],
   recibos: PeriodoRecibo[],
   fecha: string,
+  faltas: FaltaDia[] = [],
   dias = 7,
 ): { trabajador: T; fecha: string }[] {
   const lista: { trabajador: T; fecha: string }[] = [];
@@ -98,6 +132,7 @@ export function pendientesAnteriores<T extends Programa & { id: string; alta?: s
     const dia = sumarDias(fecha, -i);
     for (const t of trabajadores) {
       if (t.alta && dia < t.alta) continue;
+      if (faltoCompleto(t, faltas, dia)) continue;
       if (leTocaCobrar(t, dia) && !reciboQueCubre(recibos, t.id, dia)) lista.push({ trabajador: t, fecha: dia });
     }
   }

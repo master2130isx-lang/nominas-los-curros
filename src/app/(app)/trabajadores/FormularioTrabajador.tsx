@@ -94,6 +94,22 @@ export function FormularioTrabajador({ trabajador }: { trabajador?: Trabajador }
           <input id="horario" name="horario" type="text" defaultValue={t?.horario ?? ""} />
         </div>
         <div className="campo">
+          <label htmlFor="horas_dia">
+            Horas por día pactadas <span className="ayuda">· menos de 8 es jornada reducida</span>
+          </label>
+          <input
+            id="horas_dia"
+            name="horas_dia"
+            type="number"
+            inputMode="decimal"
+            min="0.5"
+            max="24"
+            step="0.5"
+            defaultValue={t?.horas_dia ?? ""}
+            placeholder="8"
+          />
+        </div>
+        <div className="campo">
           <label htmlFor="telefono">Teléfono</label>
           <input id="telefono" name="telefono" type="tel" defaultValue={t?.telefono ?? ""} />
         </div>

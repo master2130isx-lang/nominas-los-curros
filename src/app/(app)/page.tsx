@@ -1,18 +1,24 @@
 import Link from "next/link";
 import { EstadoRecibo } from "@/componentes/EstadoRecibo";
+import { PastillaFalta } from "@/componentes/PastillaFalta";
 import { esFecha, hoy, sumarDias } from "@/lib/fechas";
 import { dinero, fechaConDia, folio } from "@/lib/formato";
 import {
   cantidadSugerida,
-  leTocaCobrar,
+  cobraEseDia,
+  faltaDe,
+  faltasSinAviso30,
   pendientesAnteriores,
   periodoSugerido,
   reciboQueCubre,
   textoDiaPago,
+  trabajaEse,
 } from "@/lib/programa";
 import { requerirSesion } from "@/lib/sesion";
-import type { Adelanto, Recibo, Trabajador } from "@/lib/tipos";
+import type { Adelanto, Falta, Recibo, Trabajador } from "@/lib/tipos";
 import { FORMAS_PAGO } from "@/lib/tipos";
+import { MarcarFalta } from "./faltas/MarcarFalta";
+import { QuitarFalta } from "./faltas/QuitarFalta";
 import { LoteDelDia, type FilaLote } from "./LoteDelDia";
 
 function titulo(fecha: string, hoyMx: string) {
@@ -28,7 +34,7 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
   const hoyMx = hoy();
   const fecha = esFecha(f) ? f : hoyMx;
 
-  const [{ data: trabajadores }, { data: recibos }, { data: adelantos }] = await Promise.all([
+  const [{ data: trabajadores }, { data: recibos }, { data: adelantos }, { data: faltasDatos }] = await Promise.all([
     supabase.from("trabajadores").select("*").eq("activo", true).order("nombre").returns<Trabajador[]>(),
     supabase
       .from("recibos")
@@ -39,7 +45,15 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
       .order("folio")
       .returns<Recibo[]>(),
     supabase.from("adelantos").select("trabajador_id, monto").is("recibo_id", null).returns<Pick<Adelanto, "trabajador_id" | "monto">[]>(),
+    supabase
+      .from("faltas")
+      .select("*")
+      .gte("fecha", sumarDias(fecha, -37))
+      .lte("fecha", sumarDias(fecha, 7))
+      .order("fecha")
+      .returns<Falta[]>(),
   ]);
+  const faltas = (faltasDatos ?? []).map((f) => ({ ...f, fraccion: Number(f.fraccion) }));
   const activos = (trabajadores ?? []).map((t) => ({
     ...t,
     tarifa: Number(t.tarifa),
@@ -48,16 +62,21 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
   }));
   const lista = recibos ?? [];
 
-  const lesToca = activos.filter((t) => leTocaCobrar(t, fecha));
+  const lesToca = activos.filter((t) => cobraEseDia(t, faltas, fecha));
+  const trabajanHoy = activos.filter((t) => trabajaEse(t, fecha));
+  const sinAviso = faltasSinAviso30(faltas, fecha);
+  const enRiesgo = activos.filter((t) => (sinAviso.get(t.id) ?? 0) >= 3);
   const porCobrar = lesToca.filter((t) => !reciboQueCubre(lista, t.id, fecha));
   const pagados = lista.filter((r) => r.fecha_pago === fecha);
-  const pendientes = pendientesAnteriores(activos, lista, fecha);
+  const pendientes = pendientesAnteriores(activos, lista, fecha, faltas);
   const sinDias = activos.filter((t) => t.pago_cuando !== "dia_semana" && t.dias_trabajo.length === 0);
   const adelantoPendiente = new Map<string, number>();
   for (const a of adelantos ?? []) adelantoPendiente.set(a.trabajador_id, (adelantoPendiente.get(a.trabajador_id) ?? 0) + Number(a.monto));
 
   const filasLote: FilaLote[] = porCobrar.map((t) => {
     const p = periodoSugerido(t, fecha);
+    const mediaFalta = t.forma_pago === "dia" || t.forma_pago === "turno" ? faltaDe(faltas, t.id, fecha) : undefined;
+    const sugerida = cantidadSugerida(t);
     return {
       trabajadorId: t.id,
       nombre: t.nombre,
@@ -65,10 +84,15 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
       formaPago: t.forma_pago,
       tarifa: t.tarifa,
       pasaje: t.pasaje,
-      cantidad: cantidadSugerida(t),
+      cantidad: sugerida !== null && mediaFalta ? sugerida - mediaFalta.fraccion : sugerida,
       periodoInicio: p.inicio,
       periodoFin: p.fin,
       adelantoPendiente: adelantoPendiente.get(t.id) ?? 0,
+      faltas: faltas
+        .filter((f) => f.trabajador_id === t.id && !f.recibo_id && f.fecha >= p.inicio && f.fecha <= p.fin)
+        .map((f) => ({ fecha: f.fecha, tipo: f.tipo, fraccion: f.fraccion, nota: f.nota })),
+      diasTrabajo: t.dias_trabajo,
+      horasDia: t.horas_dia === null ? null : Number(t.horas_dia),
     };
   });
 
@@ -138,6 +162,80 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
         </p>
       )}
 
+      {enRiesgo.length > 0 && (
+        <p className="alerta">
+          <strong>3 o más faltas sin aviso en 30 días:</strong>{" "}
+          {enRiesgo.map((t, i) => (
+            <span key={t.id}>
+              {i > 0 && ", "}
+              <Link href={`/faltas?trabajador=${t.id}`}>
+                {t.nombre} ({sinAviso.get(t.id)})
+              </Link>
+            </span>
+          ))}
+          . La Ley Federal del Trabajo (art. 47, fr. X) considera más de 3 faltas sin permiso en 30 días causa de
+          despido sin responsabilidad para el patrón. Conviene platicarlo con ellos y que cada falta quede en un recibo
+          firmado.
+        </p>
+      )}
+
+      <section className="seccion">
+        <h2>
+          ¿Quién faltó? <span className="cuenta">{trabajanHoy.length} trabajan este día</span>
+        </h2>
+        {trabajanHoy.length === 0 ? (
+          <p className="caja vacio">Nadie tiene marcado este día como día de trabajo.</p>
+        ) : (
+          <div className="caja tabla-scroll">
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Trabajador</th>
+                  <th>Asistencia</th>
+                  <th>
+                    <span className="sr-only">Acciones</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {trabajanHoy.map((t) => {
+                  const f = faltaDe(faltas, t.id, fecha);
+                  return (
+                    <tr key={t.id}>
+                      <td>
+                        <strong>{t.nombre}</strong>
+                        <span className="secundario">{t.actividad ?? ""}</span>
+                      </td>
+                      <td>
+                        {f ? (
+                          <>
+                            <PastillaFalta tipo={f.tipo} fraccion={f.fraccion} />
+                            {f.nota && <span className="secundario">{f.nota}</span>}
+                          </>
+                        ) : (
+                          <span className="pastilla ok">Vino</span>
+                        )}
+                      </td>
+                      <td>
+                        {f ? (
+                          f.recibo_id ? (
+                            <span className="secundario">Ya está en un recibo</span>
+                          ) : (
+                            <QuitarFalta id={f.id} />
+                          )
+                        ) : (
+                          <MarcarFalta trabajadorId={t.id} nombre={t.nombre} fecha={fecha} />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       <section className="seccion">
         <h2>
           Por cobrar <span className="cuenta">{porCobrar.length}</span>
@@ -206,7 +304,7 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
             Pendientes de días anteriores <span className="cuenta">{pendientes.length}</span>
           </h2>
           <p style={{ margin: 0, color: "var(--tenue)" }}>
-            Les tocaba cobrar y no tienen recibo. Si no vinieron, ignóralos por ahora; pronto se podrá marcar la falta.
+            Les tocaba cobrar y no tienen recibo. Si no vinieron, márcales la falta y ya no saldrán aquí.
           </p>
           <div className="caja tabla-scroll">
             <table className="tabla">
@@ -233,9 +331,12 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
                       <span className="secundario">{textoDiaPago(t)}</span>
                     </td>
                     <td>
-                      <Link className="boton chico" href={`/recibos/nuevo?trabajador=${t.id}&fecha=${dia}`}>
-                        Hacer recibo
-                      </Link>
+                      <div className="acciones" style={{ gap: 6, alignItems: "flex-start" }}>
+                        <Link className="boton chico" href={`/recibos/nuevo?trabajador=${t.id}&fecha=${dia}`}>
+                          Hacer recibo
+                        </Link>
+                        {t.pago_cuando !== "dia_semana" && <MarcarFalta trabajadorId={t.id} nombre={t.nombre} fecha={dia} />}
+                      </div>
                     </td>
                   </tr>
                 ))}

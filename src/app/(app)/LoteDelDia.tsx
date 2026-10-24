@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { calcularRecibo } from "@/lib/calculo";
+import { calcularRecibo, type FaltaCaptura } from "@/lib/calculo";
 import { dinero, rango } from "@/lib/formato";
 import { FORMAS_PAGO, UNIDADES, type FormaPago } from "@/lib/tipos";
 import { crearLote, type EstadoLote } from "./recibos/acciones";
@@ -18,6 +18,10 @@ export interface FilaLote {
   periodoInicio: string;
   periodoFin: string;
   adelantoPendiente: number;
+  /** Faltas sin recibo dentro del periodo (se descuentan solas en semana fija). */
+  faltas: FaltaCaptura[];
+  diasTrabajo: number[];
+  horasDia: number | null;
 }
 
 /** Los que cobran este día: se escoge a quiénes, se ajusta la cantidad y se hacen todos los recibos juntos. */
@@ -31,7 +35,18 @@ export function LoteDelDia({ filas, fecha }: { filas: FilaLote[]; fecha: string 
   const elegidas = filas.filter((f) => marcados.includes(f.trabajadorId));
   const total = (f: FilaLote) => {
     const c = Number(cantidades[f.trabajadorId]);
-    return c > 0 ? calcularRecibo({ formaPago: f.formaPago, tarifa: f.tarifa, pasaje: f.pasaje, cantidad: c, extras: [], adelantos: [] }).total : null;
+    if (!(c > 0)) return null;
+    return calcularRecibo({
+      formaPago: f.formaPago,
+      tarifa: f.tarifa,
+      pasaje: f.pasaje,
+      cantidad: c,
+      extras: [],
+      adelantos: [],
+      faltas: f.faltas,
+      diasTrabajo: f.diasTrabajo,
+      horasDia: f.horasDia,
+    }).total;
   };
   const listos = elegidas.filter((f) => total(f) !== null);
   const datos = JSON.stringify(
@@ -89,6 +104,12 @@ export function LoteDelDia({ filas, fecha }: { filas: FilaLote[]; fecha: string 
                       {FORMAS_PAGO[f.formaPago]} · {dinero(f.tarifa)}
                       {f.pasaje > 0 ? ` + ${dinero(f.pasaje)} pasaje` : ""}
                     </span>
+                    {f.formaPago === "semana" && f.faltas.length > 0 && (
+                      <span className="secundario" style={{ color: "var(--aviso-texto)" }}>
+                        {f.faltas.length === 1 ? "1 falta en el periodo" : `${f.faltas.length} faltas en el periodo`}
+                        {f.faltas.some((x) => x.tipo !== "justificada") ? " (se descuenta sola)" : " (justificada)"}
+                      </span>
+                    )}
                     {f.adelantoPendiente > 0 && (
                       <span className="secundario" style={{ color: "var(--aviso-texto)" }}>
                         Tiene {dinero(f.adelantoPendiente)} de adelanto por descontar
