@@ -75,7 +75,21 @@ export interface Adelanto {
   fecha: string;
   monto: number;
   descripcion: string | null;
-  recibo_id: string | null;
+  creado_en: string;
+}
+
+/** Fila de la vista adelantos_saldo. */
+export interface AdelantoSaldo extends Adelanto {
+  abonado: number;
+  saldo: number;
+}
+
+export interface Abono {
+  id: string;
+  adelanto_id: string;
+  recibo_id: string;
+  monto: number;
+  creado_en: string;
 }
 
 export interface Falta {

@@ -7,7 +7,7 @@ import { TIPOS_FALTA, type Falta } from "@/lib/tipos";
 import { sumarDias } from "@/lib/fechas";
 import { dinero } from "@/lib/formato";
 import { cantidadSugerida, periodoSugerido } from "@/lib/programa";
-import { FORMAS_PAGO, UNIDADES, type Adelanto, type Trabajador } from "@/lib/tipos";
+import { FORMAS_PAGO, UNIDADES, type AdelantoSaldo, type Trabajador } from "@/lib/tipos";
 import { crearRecibo, type EstadoFormulario } from "../acciones";
 
 const NOMBRE_DIA = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -37,7 +37,8 @@ export function FormularioRecibo({
   entrego,
 }: {
   trabajadores: Trabajador[];
-  adelantos: Adelanto[];
+  /** Préstamos y adelantos con saldo pendiente. */
+  adelantos: AdelantoSaldo[];
   /** Faltas que todavía no están en un recibo. */
   faltas: Falta[];
   inicial?: string;
@@ -54,12 +55,14 @@ export function FormularioRecibo({
   const [cantidad, setCantidad] = useState(cantidadInicial(primero));
   const [diasMarcados, setDiasMarcados] = useState<string[]>([]);
   const [extras, setExtras] = useState<ExtraCaptura[]>([]);
-  const [adelantosSel, setAdelantosSel] = useState<string[]>([]);
+  const [abono, setAbono] = useState("");
   const [nota, setNota] = useState("");
   const [estado, accion, enviando] = useActionState<EstadoFormulario, FormData>(crearRecibo, { error: null });
 
   const t = trabajadores.find((x) => x.id === trabajadorId);
-  const pendientes = adelantos.filter((a) => a.trabajador_id === trabajadorId);
+  const pendientes = adelantos.filter((a) => a.trabajador_id === trabajadorId && a.saldo > 0);
+  const debe = Math.round(pendientes.reduce((s, a) => s + a.saldo, 0) * 100) / 100;
+  const abonoNum = Number(abono) || 0;
   const faltasPeriodo = faltas.filter((f) => f.trabajador_id === trabajadorId && f.fecha >= inicio && f.fecha <= fin);
   const porDias = t?.forma_pago === "dia" || t?.forma_pago === "turno";
   const dias = useMemo(() => (inicio && fin && fin >= inicio ? diasDelPeriodo(inicio, fin) : []), [inicio, fin]);
@@ -72,7 +75,7 @@ export function FormularioRecibo({
     setFin(p.fin);
     setCantidad(cantidadInicial(nuevo));
     setDiasMarcados([]);
-    setAdelantosSel([]);
+    setAbono("");
   }
 
   function marcarDia(dia: string) {
@@ -89,7 +92,8 @@ export function FormularioRecibo({
         pasaje: t.pasaje,
         cantidad: num > 0 ? num : 0,
         extras: extras.filter((e) => e.descripcion.trim()),
-        adelantos: pendientes.filter((a) => adelantosSel.includes(a.id)),
+        adelantos: pendientes,
+        abono: Math.min(abonoNum, debe),
         faltas: faltasPeriodo,
         diasTrabajo: t.dias_trabajo,
         horasDia: t.horas_dia,
@@ -103,12 +107,13 @@ export function FormularioRecibo({
     fechaPago,
     cantidad: num,
     extras,
-    adelantos: adelantosSel,
+    abono: abonoNum,
     nota,
   });
 
   const extraIncompleto = extras.some((e) => e.importe > 0 && !e.descripcion.trim());
-  const listo = !!t && num > 0 && calculo.total >= 0 && !extraIncompleto;
+  const abonoInvalido = abonoNum < 0 || abonoNum > debe;
+  const listo = !!t && num > 0 && calculo.total >= 0 && !extraIncompleto && !abonoInvalido;
 
   return (
     <div className="dos-columnas">
@@ -237,23 +242,37 @@ export function FormularioRecibo({
         )}
 
         {pendientes.length > 0 && (
-          <fieldset>
-            <legend>Descontar adelantos pendientes</legend>
+          <fieldset className="abono">
+            <legend>Abono a préstamos y adelantos</legend>
+            <p style={{ margin: 0 }}>
+              Debe <strong>{dinero(debe)}</strong>
+              {pendientes.length > 1 ? ` en ${pendientes.length} préstamos` : ""}. Escribe lo que el trabajador quiere
+              abonar esta vez; puede ser $0. Se aplica primero al más viejo.
+            </p>
             <div className="acciones">
-              {pendientes.map((a) => (
-                <label key={a.id} className="casilla">
-                  <input
-                    type="checkbox"
-                    checked={adelantosSel.includes(a.id)}
-                    onChange={() =>
-                      setAdelantosSel(adelantosSel.includes(a.id) ? adelantosSel.filter((x) => x !== a.id) : [...adelantosSel, a.id])
-                    }
-                  />
-                  {dinero(a.monto)} del {a.fecha.split("-").reverse().join("/")}
-                  {a.descripcion ? ` · ${a.descripcion}` : ""}
-                </label>
-              ))}
+              <label htmlFor="abono" className="sr-only">
+                Cuánto abona
+              </label>
+              <input
+                id="abono"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                max={debe}
+                step="0.5"
+                placeholder="0"
+                value={abono}
+                onChange={(e) => setAbono(e.target.value)}
+                style={{ maxWidth: 160 }}
+              />
+              <button type="button" className="boton chico" onClick={() => setAbono("")}>
+                No abona
+              </button>
+              <button type="button" className="boton chico" onClick={() => setAbono(String(debe))}>
+                Todo ({dinero(debe)})
+              </button>
             </div>
+            {abonoInvalido && <p className="alerta">No puede abonar más de lo que debe ({dinero(debe)}).</p>}
           </fieldset>
         )}
 

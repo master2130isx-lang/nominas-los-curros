@@ -2,67 +2,117 @@ import Link from "next/link";
 import { hoy } from "@/lib/fechas";
 import { dinero, fechaLarga, folio } from "@/lib/formato";
 import { requerirSesion } from "@/lib/sesion";
-import type { Adelanto, Trabajador } from "@/lib/tipos";
+import type { Abono, AdelantoSaldo, Trabajador } from "@/lib/tipos";
 import { FormularioAdelanto } from "./FormularioAdelanto";
 
-export default async function Adelantos() {
+export default async function Adelantos({ searchParams }: { searchParams: Promise<{ ver?: string }> }) {
   const { supabase } = await requerirSesion();
+  const { ver } = await searchParams;
+  const verPagados = ver === "todos";
+  let consulta = supabase.from("adelantos_saldo").select("*").order("fecha", { ascending: false }).limit(200);
+  if (!verPagados) consulta = consulta.gt("saldo", 0);
   const [{ data: adelantos }, { data: trabajadores }] = await Promise.all([
-    supabase
-      .from("adelantos")
-      .select("*, recibos(folio)")
-      .order("fecha", { ascending: false })
-      .limit(100)
-      .returns<(Adelanto & { recibos: { folio: number } | null })[]>(),
-    supabase.from("trabajadores").select("id, nombre").eq("activo", true).order("nombre").returns<Pick<Trabajador, "id" | "nombre">[]>(),
+    consulta.returns<AdelantoSaldo[]>(),
+    supabase.from("trabajadores").select("id, nombre, activo").order("nombre").returns<Pick<Trabajador, "id" | "nombre" | "activo">[]>(),
   ]);
-  const { data: todos } = await supabase.from("trabajadores").select("id, nombre").returns<Pick<Trabajador, "id" | "nombre">[]>();
-  const nombres = new Map((todos ?? []).map((t) => [t.id, t.nombre]));
-  const pendiente = (adelantos ?? []).filter((a) => !a.recibo_id).reduce((s, a) => s + Number(a.monto), 0);
+  const lista = adelantos ?? [];
+  const { data: abonos } = lista.length
+    ? await supabase
+        .from("abonos")
+        .select("*, recibos(folio, fecha_pago)")
+        .in("adelanto_id", lista.map((a) => a.id))
+        .order("creado_en")
+        .returns<(Abono & { recibos: { folio: number; fecha_pago: string } | null })[]>()
+    : { data: [] };
+  const nombres = new Map((trabajadores ?? []).map((t) => [t.id, t.nombre]));
+  const porPrestamo = new Map<string, NonNullable<typeof abonos>>();
+  for (const ab of abonos ?? []) porPrestamo.set(ab.adelanto_id, [...(porPrestamo.get(ab.adelanto_id) ?? []), ab]);
+  const totalDebe = lista.reduce((s, a) => s + Number(a.saldo), 0);
+
+  // Saldo por trabajador, para verlo de un vistazo.
+  const porTrabajador = new Map<string, number>();
+  for (const a of lista) if (Number(a.saldo) > 0) porTrabajador.set(a.trabajador_id, (porTrabajador.get(a.trabajador_id) ?? 0) + Number(a.saldo));
 
   return (
     <>
       <div className="encabezado">
         <div>
-          <h1>Adelantos</h1>
+          <h1>Préstamos y adelantos</h1>
           <div className="sub">
-            Por descontar: {dinero(pendiente)}. Se descuentan al hacer el recibo del trabajador.
+            Le deben al negocio {dinero(totalDebe)}. En cada recibo se anota lo que el trabajador quiere abonar; puede ser
+            $0.
           </div>
         </div>
+        <div className="acciones">
+          <Link className="boton chico" href={verPagados ? "/adelantos" : "/adelantos?ver=todos"}>
+            {verPagados ? "Solo los que deben" : "Ver también los ya pagados"}
+          </Link>
+        </div>
       </div>
-      <FormularioAdelanto trabajadores={trabajadores ?? []} hoy={hoy()} />
+
+      {porTrabajador.size > 0 && (
+        <div className="tarjetas">
+          {[...porTrabajador].map(([id, saldo]) => (
+            <div className="tarjeta" key={id}>
+              <span className="etiqueta">{nombres.get(id) ?? "—"}</span>
+              <span className="valor">{dinero(saldo)}</span>
+              <span className="nota">
+                <Link href={`/recibos/nuevo?trabajador=${id}`}>Hacer recibo con abono</Link>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <FormularioAdelanto trabajadores={(trabajadores ?? []).filter((t) => t.activo)} hoy={hoy()} />
+
       <div className="caja tabla-scroll">
-        {(adelantos ?? []).length === 0 ? (
-          <p className="vacio">No hay adelantos registrados.</p>
+        {lista.length === 0 ? (
+          <p className="vacio">{verPagados ? "No hay préstamos registrados." : "Nadie debe nada."}</p>
         ) : (
           <table className="tabla">
             <thead>
               <tr>
                 <th>Fecha</th>
                 <th>Trabajador</th>
-                <th>Nota</th>
-                <th className="num">Monto</th>
-                <th>Estado</th>
+                <th className="num">Prestado</th>
+                <th>Abonos</th>
+                <th className="num">Saldo</th>
               </tr>
             </thead>
             <tbody>
-              {(adelantos ?? []).map((a) => (
-                <tr key={a.id}>
-                  <td>{fechaLarga(a.fecha)}</td>
-                  <td>{nombres.get(a.trabajador_id) ?? "—"}</td>
-                  <td>{a.descripcion ?? "—"}</td>
-                  <td className="num">{dinero(Number(a.monto))}</td>
-                  <td>
-                    {a.recibo_id ? (
-                      <Link href={`/recibos/${a.recibo_id}`} className="pastilla ok" style={{ textDecoration: "none" }}>
-                        Descontado en folio {a.recibos ? folio(a.recibos.folio) : ""}
-                      </Link>
-                    ) : (
-                      <span className="pastilla aviso">Por descontar</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {lista.map((a) => {
+                const suyos = porPrestamo.get(a.id) ?? [];
+                return (
+                  <tr key={a.id}>
+                    <td>
+                      {fechaLarga(a.fecha)}
+                      {a.descripcion && <span className="secundario">{a.descripcion}</span>}
+                    </td>
+                    <td>{nombres.get(a.trabajador_id) ?? "—"}</td>
+                    <td className="num">{dinero(Number(a.monto))}</td>
+                    <td>
+                      {suyos.length === 0 ? (
+                        <span className="secundario">Sin abonos todavía</span>
+                      ) : (
+                        suyos.map((ab) => (
+                          <span key={ab.id} className="secundario">
+                            {dinero(Number(ab.monto))} el {ab.recibos ? fechaLarga(ab.recibos.fecha_pago) : "—"} ·{" "}
+                            <Link href={`/recibos/${ab.recibo_id}`}>folio {ab.recibos ? folio(ab.recibos.folio) : ""}</Link>
+                          </span>
+                        ))
+                      )}
+                    </td>
+                    <td className="num">
+                      {Number(a.saldo) > 0 ? (
+                        <strong>{dinero(Number(a.saldo))}</strong>
+                      ) : (
+                        <span className="pastilla ok">Pagado</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

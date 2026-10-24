@@ -1,0 +1,277 @@
+-- Préstamos y adelantos con abonos voluntarios.
+--
+-- Antes un adelanto se descontaba completo en un solo recibo. Ahora cada
+-- préstamo o adelanto tiene un saldo: en cada recibo se escribe cuánto quiere
+-- abonar el trabajador esa vez (puede ser $0), se aplica primero al más viejo
+-- y no puede pasar de lo que debe. Si se cancela el recibo, el abono se
+-- devuelve al saldo.
+
+create table abonos (
+  id uuid primary key default gen_random_uuid(),
+  adelanto_id uuid not null references adelantos (id),
+  recibo_id uuid not null references recibos (id),
+  monto numeric(10, 2) not null check (monto > 0),
+  creado_en timestamptz not null default now()
+);
+
+create index abonos_adelanto_idx on abonos (adelanto_id);
+create index abonos_recibo_idx on abonos (recibo_id);
+
+alter table abonos enable row level security;
+create policy abonos_ver on abonos for select to authenticated
+  using (es_usuario_activo());
+
+-- Los adelantos que ya se descontaron completos pasan a ser un abono por el total.
+insert into abonos (adelanto_id, recibo_id, monto, creado_en)
+select a.id, a.recibo_id, a.monto, r.creado_en
+  from adelantos a join recibos r on r.id = a.recibo_id
+ where r.estado <> 'cancelado';
+
+drop policy adelantos_crear on adelantos;
+drop index adelantos_pendientes_idx;
+alter table adelantos drop column recibo_id;
+
+create policy adelantos_crear on adelantos for insert to authenticated
+  with check (es_usuario_activo());
+
+-- Saldo de cada préstamo (con los permisos de quien consulta).
+create view adelantos_saldo with (security_invoker = true) as
+select a.*,
+       coalesce(s.abonado, 0)::numeric(10, 2) as abonado,
+       (a.monto - coalesce(s.abonado, 0))::numeric(10, 2) as saldo
+  from adelantos a
+  left join (select adelanto_id, sum(monto) as abonado from abonos group by adelanto_id) s
+    on s.adelanto_id = a.id;
+
+grant select on adelantos_saldo to authenticated;
+
+-- crear_recibo cambia de parámetros: p_adelantos (lista) pasa a p_abono (monto).
+drop function crear_recibo(uuid, date, date, date, numeric, jsonb, uuid[], text);
+
+create function crear_recibo(
+  p_trabajador_id uuid,
+  p_periodo_inicio date,
+  p_periodo_fin date,
+  p_fecha_pago date,
+  p_cantidad numeric,
+  p_extras jsonb default '[]'::jsonb,
+  p_abono numeric default 0,
+  p_nota text default null
+) returns recibos
+language plpgsql security definer set search_path = public as $$
+declare
+  t trabajadores;
+  r recibos;
+  v_folio int;
+  v_conceptos jsonb := '[]'::jsonb;
+  v_concepto jsonb;
+  v_total numeric(10, 2) := 0;
+  v_importe numeric(10, 2);
+  v_unidad text;
+  v_descripcion text;
+  v_extra jsonb;
+  v_prestamo adelantos_saldo;
+  v_resta numeric(10, 2);
+  v_aplicado numeric(10, 2);
+  v_abonos jsonb := '[]'::jsonb;
+  v_abono jsonb;
+  v_debe numeric(10, 2);
+  v_falta faltas;
+  v_faltas_ids uuid[] := '{}';
+  v_dias int;
+  v_diario numeric;
+  v_descanso numeric;
+  v_orden int := 0;
+begin
+  if not es_usuario_activo() then
+    raise exception 'No tienes acceso';
+  end if;
+
+  select * into t from trabajadores where id = p_trabajador_id and activo;
+  if not found then
+    raise exception 'Trabajador no encontrado o dado de baja';
+  end if;
+  if p_cantidad is null or p_cantidad <= 0 then
+    raise exception 'La cantidad trabajada debe ser mayor a cero';
+  end if;
+
+  -- 1. Se arman todos los conceptos y el total antes de guardar nada.
+  v_unidad := case t.forma_pago
+    when 'hora' then 'hora(s)'
+    when 'turno' then 'turno(s)'
+    when 'dia' then 'día(s)'
+    when 'tarea' then 'tarea(s)'
+    when 'semana' then 'semana(s)'
+  end;
+  v_importe := round(p_cantidad * t.tarifa, 2);
+  v_descripcion := trim(trailing '.' from to_char(p_cantidad, 'FM999990.99')) || ' ' || v_unidad
+                   || ' × ' || dinero_texto(t.tarifa);
+  if t.horas_dia is not null and t.horas_dia < 8 then
+    v_descripcion := v_descripcion || ' · jornada reducida de '
+                     || trim(trailing '.' from to_char(t.horas_dia, 'FM990.99')) || ' h diarias'
+                     || coalesce(' (' || texto_dias(nullif(t.dias_trabajo, '{}')) || ')', '');
+  end if;
+  v_conceptos := v_conceptos || jsonb_build_object('tipo', 'trabajo', 'descripcion', v_descripcion, 'importe', v_importe);
+  v_total := v_total + v_importe;
+
+  if t.pasaje > 0 then
+    v_importe := case when t.forma_pago in ('dia', 'turno')
+                      then round(p_cantidad * t.pasaje, 2) else t.pasaje end;
+    v_conceptos := v_conceptos || jsonb_build_object(
+      'tipo', 'pasaje', 'descripcion', 'Apoyo de pasaje', 'importe', v_importe);
+    v_total := v_total + v_importe;
+  end if;
+
+  -- Faltas del periodo (solo semana fija; a los demás se les paga lo trabajado).
+  if t.forma_pago = 'semana' then
+    v_dias := cardinality(t.dias_trabajo);
+    for v_falta in
+      select * from faltas
+      where trabajador_id = t.id and recibo_id is null
+        and fecha between p_periodo_inicio and p_periodo_fin
+      order by fecha
+      for update
+    loop
+      if v_falta.tipo = 'justificada' then
+        v_importe := 0;
+        v_descripcion := case when v_falta.fraccion < 1 then 'Media falta' else 'Falta' end
+                         || ' justificada el ' || fecha_con_dia(v_falta.fecha) || ', se paga completo';
+      else
+        if v_dias = 0 then
+          raise exception 'Marca los días que trabaja % para poder descontar sus faltas', t.nombre;
+        end if;
+        v_importe := -round(t.tarifa / v_dias * v_falta.fraccion, 2);
+        v_descripcion := case when v_falta.fraccion < 1 then 'Media falta' else 'Falta' end
+                         || case v_falta.tipo when 'sin_aviso' then ' sin aviso' else ' con permiso sin goce' end
+                         || ' el ' || fecha_con_dia(v_falta.fecha);
+        if v_dias = 6 then
+          v_diario := round(t.tarifa / 7 * v_falta.fraccion, 2);
+          v_descanso := -v_importe - v_diario;
+          v_descripcion := v_descripcion || ': día ' || dinero_texto(v_diario)
+                           || ' + parte del descanso ' || dinero_texto(v_descanso);
+        else
+          v_descripcion := v_descripcion || ': ' || case when v_falta.fraccion < 1 then '½' else '1' end
+                           || ' de ' || v_dias || ' días pactados';
+        end if;
+      end if;
+      if nullif(trim(v_falta.nota), '') is not null then
+        v_descripcion := v_descripcion || ' (' || trim(v_falta.nota) || ')';
+      end if;
+      v_conceptos := v_conceptos || jsonb_build_object('tipo', 'falta', 'descripcion', v_descripcion, 'importe', v_importe);
+      v_total := v_total + v_importe;
+      v_faltas_ids := v_faltas_ids || v_falta.id;
+    end loop;
+  end if;
+
+  for v_extra in select * from jsonb_array_elements(coalesce(p_extras, '[]'::jsonb)) loop
+    v_importe := abs((v_extra ->> 'importe')::numeric);
+    if v_importe is null or v_importe = 0 then
+      continue;
+    end if;
+    if coalesce(v_extra ->> 'tipo', '') not in ('extra', 'prestamo', 'otro') then
+      raise exception 'Tipo de concepto no válido: %', v_extra ->> 'tipo';
+    end if;
+    if coalesce(trim(v_extra ->> 'descripcion'), '') = '' then
+      raise exception 'Cada extra o descuento necesita una nota que diga por qué';
+    end if;
+    if v_extra ->> 'tipo' = 'prestamo' then
+      v_importe := -v_importe;
+    end if;
+    v_conceptos := v_conceptos || jsonb_build_object(
+      'tipo', v_extra ->> 'tipo', 'descripcion', trim(v_extra ->> 'descripcion'), 'importe', v_importe);
+    v_total := v_total + v_importe;
+  end loop;
+
+  -- Abono voluntario a préstamos y adelantos: el trabajador decide cuánto;
+  -- se aplica primero al más viejo y no puede pasar del saldo.
+  v_resta := round(coalesce(p_abono, 0), 2);
+  if v_resta < 0 then
+    raise exception 'El abono no puede ser negativo';
+  end if;
+  if v_resta > 0 then
+    perform 1 from adelantos where trabajador_id = t.id for update;
+    select coalesce(sum(saldo), 0) into v_debe from adelantos_saldo where trabajador_id = t.id;
+    if v_resta > v_debe then
+      raise exception 'El abono (%) es mayor que lo que debe (%)', dinero_texto(v_resta), dinero_texto(v_debe);
+    end if;
+    for v_prestamo in
+      select * from adelantos_saldo
+      where trabajador_id = t.id and saldo > 0
+      order by fecha, creado_en
+    loop
+      exit when v_resta = 0;
+      v_aplicado := least(v_resta, v_prestamo.saldo);
+      v_resta := v_resta - v_aplicado;
+      v_conceptos := v_conceptos || jsonb_build_object(
+        'tipo', 'adelanto',
+        'descripcion', 'Abono a préstamo del ' || to_char(v_prestamo.fecha, 'DD/MM/YYYY')
+                       || coalesce(' (' || nullif(trim(v_prestamo.descripcion), '') || ')', '')
+                       || case when v_prestamo.saldo - v_aplicado = 0 then ', queda pagado'
+                               else ', resta ' || dinero_texto(v_prestamo.saldo - v_aplicado) end,
+        'importe', -v_aplicado);
+      v_total := v_total - v_aplicado;
+      v_abonos := v_abonos || jsonb_build_object('adelanto_id', v_prestamo.id, 'monto', v_aplicado);
+    end loop;
+  end if;
+
+  if v_total < 0 then
+    raise exception 'Los descuentos son mayores que el pago (total %)', v_total;
+  end if;
+
+  -- 2. Folio consecutivo: el contador se bloquea hasta que termina la
+  -- transacción, así no se repite ni se salta.
+  update contador_folios set ultimo = ultimo + 1 where id = 1 returning ultimo into v_folio;
+
+  insert into recibos (folio, trabajador_id, trabajador_nombre, trabajador_actividad,
+                       periodo_inicio, periodo_fin, fecha_pago, forma_pago, tarifa,
+                       cantidad, total, nota)
+  values (v_folio, t.id, t.nombre, t.actividad, p_periodo_inicio, p_periodo_fin,
+          coalesce(p_fecha_pago, hoy_mx()), t.forma_pago, t.tarifa, p_cantidad, v_total,
+          nullif(trim(p_nota), ''))
+  returning * into r;
+
+  for v_concepto in select * from jsonb_array_elements(v_conceptos) loop
+    v_orden := v_orden + 1;
+    insert into recibo_conceptos (recibo_id, orden, tipo, descripcion, importe)
+    values (r.id, v_orden, (v_concepto ->> 'tipo')::tipo_concepto,
+            v_concepto ->> 'descripcion', (v_concepto ->> 'importe')::numeric);
+  end loop;
+
+  for v_abono in select * from jsonb_array_elements(v_abonos) loop
+    insert into abonos (adelanto_id, recibo_id, monto)
+    values ((v_abono ->> 'adelanto_id')::uuid, r.id, (v_abono ->> 'monto')::numeric);
+  end loop;
+  update faltas set recibo_id = r.id where id = any (v_faltas_ids);
+
+  return r;
+end;
+$$;
+
+create or replace function cancelar_recibo(p_recibo_id uuid, p_motivo text) returns recibos
+language plpgsql security definer set search_path = public as $$
+declare
+  r recibos;
+begin
+  if not es_admin() then
+    raise exception 'Solo el administrador puede cancelar recibos';
+  end if;
+  if coalesce(trim(p_motivo), '') = '' then
+    raise exception 'Escribe el motivo de la cancelación';
+  end if;
+  update recibos
+     set estado = 'cancelado', cancelado_por = auth.uid(), cancelado_en = now(),
+         motivo_cancelacion = trim(p_motivo)
+   where id = p_recibo_id
+  returning * into r;
+  if not found then
+    raise exception 'Recibo no encontrado';
+  end if;
+  -- Los abonos se devuelven al saldo y las faltas vuelven a quedar pendientes.
+  delete from abonos where recibo_id = r.id;
+  update faltas set recibo_id = null where recibo_id = r.id;
+  return r;
+end;
+$$;
+
+revoke all on function crear_recibo from public, anon;
+grant execute on function crear_recibo to authenticated;

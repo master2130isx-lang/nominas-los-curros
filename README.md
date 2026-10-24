@@ -21,16 +21,18 @@ Hecha con Next.js (en Vercel) y Supabase (base de datos, cuentas y fotos de reci
 - **Constancia de condiciones de trabajo** (art. 24 y 25): se imprime desde el trabajador, se firma una vez y se
   sube la foto.
 - **Nuevo recibo**: escoges al trabajador, marcas los días o escribes horas, turnos o tareas, agregas extras o
-  descuentos con su motivo y descuentas adelantos. El recibo se arma en pantalla mientras capturas.
+  descuentos con su motivo y anotas cuánto abona a sus préstamos. El recibo se arma en pantalla mientras capturas.
 - **Folio consecutivo**: lo asigna la base de datos al guardar; no se repite ni se salta.
 - **Recibos que no se editan**: un recibo guardado no se cambia ni se borra. Si hay un error, el administrador
-  lo cancela con un motivo y se hace uno nuevo; los adelantos que tenía vuelven a quedar pendientes.
+  lo cancela con un motivo y se hace uno nuevo; sus abonos regresan al saldo y sus faltas vuelven a quedar pendientes.
 - **Impresión**: hoja carta con original arriba y copia para el trabajador abajo, o dos recibos por hoja sin
   copia. Se pueden imprimir todos los de la semana de una vez. Desde la segunda impresión sale marcado como
   REIMPRESIÓN.
 - **Firma en papel**: el trabajador firma (o pone su huella) y se sube una foto o escaneo del recibo firmado.
   Las fotos se guardan en un espacio privado.
-- **Trabajadores** y **adelantos**.
+- **Préstamos y adelantos** con saldo: en cada recibo se escribe lo que el trabajador quiere abonar (puede ser
+  $0), se aplica primero al más viejo y el recibo dice cuánto resta. En Préstamos se ve el historial de abonos.
+- **Trabajadores**.
 - Solo entran las personas que el administrador da de alta (rol administrador o encargado). Solo el
   administrador cancela recibos.
 
@@ -44,6 +46,7 @@ Hecha con Next.js (en Vercel) y Supabase (base de datos, cuentas y fotos de reci
    - `supabase/migrations/20261024000001_almacenamiento.sql`
    - `supabase/migrations/20261025000000_dia_de_pago.sql`
    - `supabase/migrations/20261026000000_faltas.sql`
+   - `supabase/migrations/20261027000000_abonos.sql`
 
    Cada vez que se agrega un archivo nuevo en `supabase/migrations`, hay que correrlo una vez en el
    SQL Editor (solo el nuevo, en orden de nombre).

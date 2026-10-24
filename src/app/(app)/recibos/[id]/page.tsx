@@ -95,8 +95,8 @@ export default async function DetalleRecibo({
             <section className="caja relleno formulario">
               <h2>Cancelar recibo</h2>
               <p style={{ margin: 0, color: "var(--tenue)" }}>
-                Úsalo si hay un error. El recibo queda guardado como cancelado, los adelantos descontados vuelven a quedar
-                pendientes y puedes hacer uno nuevo.
+                Úsalo si hay un error. El recibo queda guardado como cancelado, los abonos regresan al saldo, las
+                faltas vuelven a quedar pendientes y puedes hacer uno nuevo.
               </p>
               <CancelarRecibo reciboId={recibo.id} />
             </section>

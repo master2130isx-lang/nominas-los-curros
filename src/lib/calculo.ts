@@ -11,9 +11,10 @@ export interface ExtraCaptura {
   importe: number;
 }
 
+/** Préstamo o adelanto con saldo pendiente. */
 export interface AdelantoCaptura {
   fecha: string;
-  monto: number;
+  saldo: number;
   descripcion: string | null;
 }
 
@@ -83,13 +84,16 @@ export function calcularRecibo(params: {
   pasaje: number;
   cantidad: number;
   extras: ExtraCaptura[];
+  /** Préstamos con saldo del trabajador, para repartir el abono. */
   adelantos: AdelantoCaptura[];
+  /** Lo que el trabajador decidió abonar esta vez; se aplica primero al más viejo. */
+  abono?: number;
   /** Faltas pendientes dentro del periodo; solo cuentan en semana fija. */
   faltas?: FaltaCaptura[];
   diasTrabajo?: number[];
   horasDia?: number | null;
 }): { lineas: LineaRecibo[]; total: number } {
-  const { formaPago, tarifa, pasaje, cantidad, extras, adelantos, faltas = [], diasTrabajo = [], horasDia } = params;
+  const { formaPago, tarifa, pasaje, cantidad, extras, adelantos, abono = 0, faltas = [], diasTrabajo = [], horasDia } = params;
   const lineas: LineaRecibo[] = [];
 
   let trabajo = `${fmtCantidad(cantidad)} ${UNIDADES[formaPago]} × ${tarifaTexto(tarifa)}`;
@@ -124,13 +128,20 @@ export function calcularRecibo(params: {
     });
   }
 
-  const ordenados = [...adelantos].sort((a, b) => a.fecha.localeCompare(b.fecha));
-  for (const a of ordenados) {
+  let resta = redondear(Math.max(0, abono));
+  for (const a of [...adelantos].sort((x, y) => x.fecha.localeCompare(y.fecha))) {
+    if (resta <= 0) break;
+    if (a.saldo <= 0) continue;
+    const aplicado = Math.min(resta, a.saldo);
+    resta = redondear(resta - aplicado);
     const nota = a.descripcion?.trim();
+    const queda = redondear(a.saldo - aplicado);
     lineas.push({
       tipo: "adelanto",
-      descripcion: `Descuento de adelanto del ${fechaCorta(a.fecha)}${nota ? ` (${nota})` : ""}`,
-      importe: -a.monto,
+      descripcion: `Abono a préstamo del ${fechaCorta(a.fecha)}${nota ? ` (${nota})` : ""}${
+        queda === 0 ? ", queda pagado" : `, resta ${tarifaTexto(queda)}`
+      }`,
+      importe: -aplicado,
     });
   }
 

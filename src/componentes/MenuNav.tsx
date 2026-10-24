@@ -10,7 +10,7 @@ const ENLACES = [
   { href: "/recibos", texto: "Recibos" },
   { href: "/faltas", texto: "Faltas" },
   { href: "/trabajadores", texto: "Trabajadores" },
-  { href: "/adelantos", texto: "Adelantos" },
+  { href: "/adelantos", texto: "Préstamos" },
 ];
 
 export function MenuNav() {
