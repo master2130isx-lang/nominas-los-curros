@@ -1,0 +1,59 @@
+/* Hoja de recibo: se usa en pantalla (vista previa) y al imprimir. */
+.hoja {
+  background: #fff;
+  color: #141b2d;
+  border: 1px solid #c9ced8;
+  padding: 26px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13px;
+  position: relative;
+  font-family: Inter, system-ui, sans-serif;
+}
+.hoja .cabeza { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #141b2d; padding-bottom: 10px; }
+.hoja .negocio strong { display: block; font-size: 18px; }
+.hoja .negocio span { color: #4a5468; }
+.hoja .folio { text-align: right; }
+.hoja .folio span { display: block; font-size: 12px; color: #4a5468; }
+.hoja .folio strong { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 17px; }
+.hoja .copia-de { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #4a5468; }
+.hoja .datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 20px; }
+.hoja table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.hoja th { text-align: left; font-weight: 600; padding: 4px 0; border-bottom: 1px solid #c9ced8; }
+.hoja td { padding: 4px 0; }
+.hoja td.importe, .hoja th.importe { text-align: right; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+.hoja tr.total td { border-top: 1px solid #141b2d; font-weight: 700; padding-top: 6px; }
+.hoja .letra { color: #4a5468; }
+.hoja p { margin: 0; }
+.hoja .firmas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; padding-top: 26px; }
+.hoja .firmas div { border-top: 1px solid #141b2d; padding-top: 4px; text-align: center; }
+.hoja .sello {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-14deg);
+  border: 3px solid #a1281b;
+  color: #a1281b;
+  font-weight: 800;
+  font-size: 26px;
+  letter-spacing: 0.08em;
+  padding: 4px 16px;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Página de impresión: carta, original arriba y copia abajo */
+.pliego { width: 8.5in; margin: 0 auto 24px; background: #fff; }
+.pliego .media { height: 5.5in; padding: 0.3in 0.45in; overflow: hidden; }
+.pliego .media + .media { border-top: 1px dashed #8a93a3; }
+.pliego .hoja { border: 0; padding: 0; height: 100%; }
+.barra-impresion { max-width: 8.5in; margin: 0 auto 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+
+@media print {
+  @page { size: letter; margin: 0; }
+  body { background: #fff; }
+  .no-imprimir { display: none !important; }
+  .pliego { margin: 0; page-break-after: always; break-after: page; }
+  .pliego:last-child { page-break-after: auto; break-after: auto; }
+}
