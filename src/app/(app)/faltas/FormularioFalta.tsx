@@ -44,7 +44,7 @@ export function FormularioFalta({
           <select id="tipo" name="tipo" defaultValue="sin_aviso">
             {(Object.keys(TIPOS_FALTA) as TipoFalta[]).map((t) => (
               <option key={t} value={t}>
-                {TIPOS_FALTA[t].nombre} · {TIPOS_FALTA[t].descuenta ? "se descuenta" : "no se descuenta"}
+                {TIPOS_FALTA[t].nombre} · {TIPOS_FALTA[t].descuento.toLowerCase()}
               </option>
             ))}
           </select>

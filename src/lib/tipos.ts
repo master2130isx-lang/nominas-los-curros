@@ -104,10 +104,26 @@ export interface Falta {
   creado_en: string;
 }
 
-export const TIPOS_FALTA: Record<TipoFalta, { nombre: string; ayuda: string; descuenta: boolean }> = {
-  sin_aviso: { nombre: "Sin aviso (injustificada)", ayuda: "No vino y no dijo nada", descuenta: true },
-  sin_goce: { nombre: "Permiso sin goce de sueldo", ayuda: "Pidió el día; no se le paga ese día, sin castigo", descuenta: true },
-  justificada: { nombre: "Justificada, con pago completo", ayuda: "Se acordó pagarle completo", descuenta: false },
+/** `descuento`: qué se le descuenta en semana fija (a los de pago por día solo no se les paga el día). */
+export const TIPOS_FALTA: Record<TipoFalta, { nombre: string; ayuda: string; descuenta: boolean; descuento: string }> = {
+  sin_aviso: {
+    nombre: "Sin aviso (injustificada)",
+    ayuda: "No vino y no dijo nada",
+    descuenta: true,
+    descuento: "Se descuenta el día y la parte del descanso",
+  },
+  sin_goce: {
+    nombre: "Permiso sin goce de sueldo",
+    ayuda: "Pidió el día y se acordó no pagárselo",
+    descuenta: true,
+    descuento: "Se descuenta solo el día, sin castigo",
+  },
+  justificada: {
+    nombre: "Justificada, con pago completo",
+    ayuda: "Se acordó pagarle completo",
+    descuenta: false,
+    descuento: "No se descuenta",
+  },
 };
 
 export const TIPOS_TRABAJADOR: Record<TipoTrabajador, string> = {

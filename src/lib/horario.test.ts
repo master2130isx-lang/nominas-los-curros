@@ -8,6 +8,7 @@ describe("horario", () => {
     expect(leerHorario("Lunes a domingo de 6am a 8am (2 horas)")).toEqual({ entrada: "06:00", salida: "08:00" });
     expect(leerHorario("Domingo a viernes de 3pm a 9pm")).toEqual({ entrada: "15:00", salida: "21:00" });
     expect(leerHorario("L-S 7 a 14")).toEqual({ entrada: "07:00", salida: "14:00" });
+    expect(leerHorario("Martes y sábado de 8am a 12-1pm aprox.")).toEqual({ entrada: "08:00", salida: "12:00" });
     expect(leerHorario("Sábado y domingo")).toBeNull();
   });
 

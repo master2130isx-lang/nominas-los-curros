@@ -26,7 +26,7 @@ export function MarcarFalta({ trabajadorId, nombre, fecha }: { trabajadorId: str
               <span>
                 <strong>{TIPOS_FALTA[t].nombre}</strong>
                 <span className="secundario">
-                  {TIPOS_FALTA[t].ayuda}. {TIPOS_FALTA[t].descuenta ? "Se descuenta." : "No se descuenta."}
+                  {TIPOS_FALTA[t].ayuda}. {TIPOS_FALTA[t].descuento}.
                 </span>
               </span>
             </label>
