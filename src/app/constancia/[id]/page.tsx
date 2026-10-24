@@ -101,7 +101,7 @@ function Constancia({ t, marca, fecha }: { t: Trabajador; marca: string; fecha: 
         <b>Faltas.</b> Toda falta se anota. Las faltas justificadas con pago completo no se descuentan.
         {porFalta !== null &&
           (esSemanaCompleta(datos)
-            ? ` Cada falta sin aviso o con permiso sin goce descuenta ${dinero(porFalta)}: el salario del día más la parte proporcional del día de descanso (arts. 69 y 72).`
+            ? ` Cada falta sin aviso descuenta ${dinero(porFalta)}: el salario del día más la parte proporcional del día de descanso (arts. 69 y 72). Con permiso sin goce solo se descuenta el salario del día, ${dinero(diario ?? 0)}.`
             : ` Cada falta sin aviso o con permiso sin goce descuenta ${dinero(porFalta)}, la parte proporcional de los días pactados.`)}
         {porFalta === null && " Como el pago es por lo trabajado, los días que no se trabajan no se pagan."}
       </p>

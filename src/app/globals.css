@@ -120,7 +120,7 @@ table.tabla { width: 100%; border-collapse: collapse; min-width: 720px; }
 .campo { display: flex; flex-direction: column; gap: 6px; }
 .campo label, .campo .etiqueta { font-size: 14px; font-weight: 600; }
 .campo .ayuda { font-size: 13px; color: var(--tenue); font-weight: 400; }
-input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="number"], input[type="tel"], select, textarea {
+input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="number"], input[type="tel"], input[type="time"], select, textarea {
   min-height: 44px;
   border: 1px solid var(--borde-fuerte);
   border-radius: 8px;
@@ -200,3 +200,25 @@ fieldset.dias-trabajo legend {
 .opcion { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
 .opcion input { margin-top: 4px; }
 .opcion .secundario { display: block; font-size: 13px; color: var(--tenue); font-weight: 400; }
+
+/* Formulario de trabajador por secciones */
+.formulario-trabajador { max-width: 820px; }
+.grupo { border: 0; padding: 0 0 18px; margin: 0; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid var(--borde); }
+.grupo > legend { font-size: 17px; font-weight: 700; padding: 0; margin-bottom: 12px; float: left; width: 100%; }
+.grupo > legend + * { clear: both; }
+.rejilla-dos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+.rejilla-tres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; }
+@media (max-width: 640px) {
+  .rejilla-dos, .rejilla-tres { grid-template-columns: minmax(0, 1fr); }
+}
+.dia { position: relative; cursor: pointer; }
+.dia input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.dia span {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 56px; min-height: 44px; padding: 0 12px;
+  border: 1px solid var(--borde-fuerte); border-radius: 8px; background: #fff; font-weight: 600;
+}
+.dia input:checked + span { background: var(--acento); border-color: var(--acento); color: #fff; }
+.dia input:focus-visible + span { outline: 2px solid var(--acento); outline-offset: 2px; }
+.horas-calculadas { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 17px; }
+.grupo > p.ayuda { font-size: 13px; color: var(--tenue); }
