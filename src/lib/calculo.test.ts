@@ -88,3 +88,50 @@ describe("fechas", () => {
     expect(dinero(14500)).toBe("$14,500.00");
   });
 });
+
+describe("faltas en semana fija", () => {
+  const celia = { formaPago: "semana" as const, tarifa: 2100, pasaje: 0, cantidad: 1, extras: [], adelantos: [], diasTrabajo: [1, 2, 4, 5, 6, 7] };
+
+  it("descuenta el día más la parte del descanso, igual que la base de datos", () => {
+    const r = calcularRecibo({
+      ...celia,
+      faltas: [
+        { fecha: "2026-10-24", tipo: "justificada", fraccion: 1, nota: "permiso" },
+        { fecha: "2026-10-23", tipo: "sin_goce", fraccion: 0.5, nota: "cita médica" },
+        { fecha: "2026-10-21", tipo: "sin_aviso", fraccion: 1, nota: null },
+      ],
+    });
+    expect(r.lineas.map((l) => [l.descripcion, l.importe])).toEqual([
+      ["1 semana(s) × $2,100.00", 2100],
+      ["Falta sin aviso el miércoles 21/10/2026: día $300.00 + parte del descanso $50.00", -350],
+      ["Media falta con permiso sin goce el viernes 23/10/2026: día $150.00 + parte del descanso $25.00 (cita médica)", -175],
+      ["Falta justificada el sábado 24/10/2026, se paga completo (permiso)", 0],
+    ]);
+    expect(r.total).toBe(1575);
+  });
+
+  it("con María ($2,400) la falta es $400: $342.86 del día y $57.14 del descanso", () => {
+    const r = calcularRecibo({ ...celia, tarifa: 2400, faltas: [{ fecha: "2026-10-20", tipo: "sin_aviso", fraccion: 1, nota: null }] });
+    expect(r.lineas[1]).toEqual({
+      tipo: "falta",
+      descripcion: "Falta sin aviso el martes 20/10/2026: día $342.86 + parte del descanso $57.14",
+      importe: -400,
+    });
+  });
+
+  it("si no trabaja 6 días, descuenta la parte de los días pactados", () => {
+    const r = calcularRecibo({ ...celia, tarifa: 1000, diasTrabajo: [1, 2, 3, 4, 5, 6, 7], faltas: [{ fecha: "2026-10-20", tipo: "sin_aviso", fraccion: 1, nota: null }] });
+    expect(r.lineas[1].descripcion).toBe("Falta sin aviso el martes 20/10/2026: 1 de 7 días pactados");
+    expect(r.lineas[1].importe).toBe(-142.86);
+  });
+
+  it("no toca a los que cobran por día", () => {
+    const r = calcularRecibo({ ...celia, formaPago: "dia", tarifa: 400, faltas: [{ fecha: "2026-10-20", tipo: "sin_aviso", fraccion: 1, nota: null }] });
+    expect(r.lineas).toHaveLength(1);
+  });
+
+  it("describe la jornada reducida", () => {
+    const r = calcularRecibo({ ...celia, tarifa: 1000, diasTrabajo: [1, 2, 3, 4, 5, 6, 7], horasDia: 2 });
+    expect(r.lineas[0].descripcion).toBe("1 semana(s) × $1,000.00 · jornada reducida de 2 h diarias (todos los días)");
+  });
+});

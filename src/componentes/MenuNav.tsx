@@ -8,6 +8,7 @@ const ENLACES = [
   { href: "/semana", texto: "Semana" },
   { href: "/recibos/nuevo", texto: "Nuevo recibo" },
   { href: "/recibos", texto: "Recibos" },
+  { href: "/faltas", texto: "Faltas" },
   { href: "/trabajadores", texto: "Trabajadores" },
   { href: "/adelantos", texto: "Adelantos" },
 ];
