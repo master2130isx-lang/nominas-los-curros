@@ -15,7 +15,7 @@ import {
   trabajaEse,
 } from "@/lib/programa";
 import { requerirSesion } from "@/lib/sesion";
-import type { Adelanto, Falta, Recibo, Trabajador } from "@/lib/tipos";
+import type { AdelantoSaldo, Falta, Recibo, Trabajador } from "@/lib/tipos";
 import { FORMAS_PAGO } from "@/lib/tipos";
 import { MarcarFalta } from "./faltas/MarcarFalta";
 import { QuitarFalta } from "./faltas/QuitarFalta";
@@ -44,7 +44,7 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
       .lte("periodo_inicio", sumarDias(fecha, 7))
       .order("folio")
       .returns<Recibo[]>(),
-    supabase.from("adelantos").select("trabajador_id, monto").is("recibo_id", null).returns<Pick<Adelanto, "trabajador_id" | "monto">[]>(),
+    supabase.from("adelantos_saldo").select("trabajador_id, saldo").gt("saldo", 0).returns<Pick<AdelantoSaldo, "trabajador_id" | "saldo">[]>(),
     supabase
       .from("faltas")
       .select("*")
@@ -71,7 +71,7 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
   const pendientes = pendientesAnteriores(activos, lista, fecha, faltas);
   const sinDias = activos.filter((t) => t.pago_cuando !== "dia_semana" && t.dias_trabajo.length === 0);
   const adelantoPendiente = new Map<string, number>();
-  for (const a of adelantos ?? []) adelantoPendiente.set(a.trabajador_id, (adelantoPendiente.get(a.trabajador_id) ?? 0) + Number(a.monto));
+  for (const a of adelantos ?? []) adelantoPendiente.set(a.trabajador_id, (adelantoPendiente.get(a.trabajador_id) ?? 0) + Number(a.saldo));
 
   const filasLote: FilaLote[] = porCobrar.map((t) => {
     const p = periodoSugerido(t, fecha);

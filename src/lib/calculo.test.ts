@@ -12,13 +12,14 @@ describe("calcularRecibo", () => {
       pasaje: 0,
       cantidad: 6,
       extras: [{ tipo: "extra", descripcion: "Se quedó 2 horas", importe: 80 }],
-      adelantos: [{ fecha: "2026-10-20", monto: 200, descripcion: "martes" }],
+      adelantos: [{ fecha: "2026-10-20", saldo: 200, descripcion: "martes" }],
+      abono: 200,
     });
     expect(r.total).toBe(1080);
     expect(r.lineas.map((l) => l.descripcion)).toEqual([
       "6 día(s) × $200.00",
       "Se quedó 2 horas",
-      "Descuento de adelanto del 20/10/2026 (martes)",
+      "Abono a préstamo del 20/10/2026 (martes), queda pagado",
     ]);
   });
 
@@ -133,5 +134,32 @@ describe("faltas en semana fija", () => {
   it("describe la jornada reducida", () => {
     const r = calcularRecibo({ ...celia, tarifa: 1000, diasTrabajo: [1, 2, 3, 4, 5, 6, 7], horasDia: 2 });
     expect(r.lineas[0].descripcion).toBe("1 semana(s) × $1,000.00 · jornada reducida de 2 h diarias (todos los días)");
+  });
+});
+
+describe("abonos a préstamos", () => {
+  it("aplica el abono primero al más viejo y dice cuánto resta, igual que la base de datos", () => {
+    const r = calcularRecibo({
+      formaPago: "semana",
+      tarifa: 2100,
+      pasaje: 0,
+      cantidad: 1,
+      extras: [],
+      adelantos: [
+        { fecha: "2026-10-20", saldo: 800, descripcion: null },
+        { fecha: "2026-10-10", saldo: 300, descripcion: "medicina" },
+      ],
+      abono: 500,
+    });
+    expect(r.lineas.slice(1)).toEqual([
+      { tipo: "adelanto", descripcion: "Abono a préstamo del 10/10/2026 (medicina), queda pagado", importe: -300 },
+      { tipo: "adelanto", descripcion: "Abono a préstamo del 20/10/2026, resta $600.00", importe: -200 },
+    ]);
+    expect(r.total).toBe(1600);
+  });
+
+  it("con abono de $0 no agrega nada", () => {
+    const r = calcularRecibo({ formaPago: "dia", tarifa: 200, pasaje: 0, cantidad: 1, extras: [], adelantos: [{ fecha: "2026-10-20", saldo: 800, descripcion: null }], abono: 0 });
+    expect(r.lineas).toHaveLength(1);
   });
 });

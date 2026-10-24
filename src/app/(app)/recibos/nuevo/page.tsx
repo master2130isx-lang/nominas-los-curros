@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { esFecha, hoy } from "@/lib/fechas";
 import { requerirSesion } from "@/lib/sesion";
-import type { Adelanto, Falta, Trabajador } from "@/lib/tipos";
+import type { AdelantoSaldo, Falta, Trabajador } from "@/lib/tipos";
 import { FormularioRecibo } from "./FormularioRecibo";
 
 export default async function NuevoRecibo({
@@ -14,7 +14,7 @@ export default async function NuevoRecibo({
   const dia = fecha && esFecha(fecha) ? fecha : hoy();
   const [{ data: trabajadores }, { data: adelantos }, { data: faltas }] = await Promise.all([
     supabase.from("trabajadores").select("*").eq("activo", true).order("nombre").returns<Trabajador[]>(),
-    supabase.from("adelantos").select("*").is("recibo_id", null).order("fecha").returns<Adelanto[]>(),
+    supabase.from("adelantos_saldo").select("*").gt("saldo", 0).order("fecha").returns<AdelantoSaldo[]>(),
     supabase.from("faltas").select("*").is("recibo_id", null).order("fecha").returns<Falta[]>(),
   ]);
 
@@ -42,7 +42,7 @@ export default async function NuevoRecibo({
             horas_dia: t.horas_dia === null ? null : Number(t.horas_dia),
           }))}
           faltas={(faltas ?? []).map((f) => ({ ...f, fraccion: Number(f.fraccion) }))}
-          adelantos={(adelantos ?? []).map((a) => ({ ...a, monto: Number(a.monto) }))}
+          adelantos={(adelantos ?? []).map((a) => ({ ...a, monto: Number(a.monto), abonado: Number(a.abonado), saldo: Number(a.saldo) }))}
           inicial={trabajador}
           fecha={dia}
           entrego={perfil.nombre}

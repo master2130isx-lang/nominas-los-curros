@@ -16,7 +16,7 @@ interface DatosRecibo {
   fechaPago: string;
   cantidad: number;
   extras: { tipo: string; descripcion: string; importe: number }[];
-  adelantos: string[];
+  abono: number;
   nota: string;
 }
 
@@ -34,6 +34,7 @@ export async function crearRecibo(_previo: EstadoFormulario, form: FormData): Pr
   }
   if (datos.periodoFin < datos.periodoInicio) return { error: "El periodo termina antes de empezar." };
   if (!(datos.cantidad > 0)) return { error: "Escribe cuánto se trabajó (mayor a cero)." };
+  if (!(Number(datos.abono) >= 0)) return { error: "El abono no puede ser negativo." };
 
   const { data, error } = await supabase
     .rpc("crear_recibo", {
@@ -43,7 +44,7 @@ export async function crearRecibo(_previo: EstadoFormulario, form: FormData): Pr
       p_fecha_pago: datos.fechaPago,
       p_cantidad: datos.cantidad,
       p_extras: datos.extras.filter((e) => Number(e.importe) > 0),
-      p_adelantos: datos.adelantos,
+      p_abono: Number(datos.abono) || 0,
       p_nota: datos.nota,
     })
     .single<{ id: string }>();

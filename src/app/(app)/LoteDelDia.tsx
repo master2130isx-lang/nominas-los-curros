@@ -112,7 +112,7 @@ export function LoteDelDia({ filas, fecha }: { filas: FilaLote[]; fecha: string 
                     )}
                     {f.adelantoPendiente > 0 && (
                       <span className="secundario" style={{ color: "var(--aviso-texto)" }}>
-                        Tiene {dinero(f.adelantoPendiente)} de adelanto por descontar
+                        Debe {dinero(f.adelantoPendiente)} de préstamos; si quiere abonar, usa “Con extras o abono”
                       </span>
                     )}
                   </td>
@@ -136,7 +136,7 @@ export function LoteDelDia({ filas, fecha }: { filas: FilaLote[]; fecha: string 
                   <td className="num">{t === null ? "—" : dinero(t)}</td>
                   <td>
                     <Link className="boton chico" href={`/recibos/nuevo?trabajador=${f.trabajadorId}&fecha=${fecha}`}>
-                      Con extras o adelantos
+                      Con extras o abono
                     </Link>
                   </td>
                 </tr>
@@ -160,7 +160,7 @@ export function LoteDelDia({ filas, fecha }: { filas: FilaLote[]; fecha: string 
               )}`}
         </button>
         <span style={{ fontSize: 13, color: "var(--tenue)" }}>
-          Para agregar extras, descuentos o adelantos, usa “Con extras o adelantos”.
+          Estos recibos no llevan abono a préstamos. Para agregar extras, descuentos o un abono, usa “Con extras o abono”.
         </span>
       </div>
     </form>

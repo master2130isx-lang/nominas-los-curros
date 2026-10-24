@@ -12,7 +12,7 @@ export function FormularioAdelanto({ trabajadores, hoy }: { trabajadores: { id: 
   }, [enviando, estado]);
   return (
     <form ref={ref} action={accion} className="caja relleno formulario">
-      <h2>Registrar adelanto</h2>
+      <h2>Registrar préstamo o adelanto</h2>
       <div className="rejilla-2">
         <div className="campo">
           <label htmlFor="trabajador">Trabajador</label>
@@ -36,14 +36,16 @@ export function FormularioAdelanto({ trabajadores, hoy }: { trabajadores: { id: 
           <input id="fecha" name="fecha" type="date" defaultValue={hoy} required />
         </div>
         <div className="campo">
-          <label htmlFor="descripcion">Cómo se va a descontar</label>
-          <input id="descripcion" name="descripcion" type="text" placeholder="Por ejemplo: en dos semanas" />
+          <label htmlFor="descripcion">
+            Nota <span className="ayuda">· para qué fue, sale en los recibos</span>
+          </label>
+          <input id="descripcion" name="descripcion" type="text" placeholder="Por ejemplo: medicina" />
         </div>
       </div>
       {estado.error && <p className="alerta">{estado.error}</p>}
       <div>
         <button type="submit" className="boton primario" disabled={enviando}>
-          Guardar adelanto
+          Guardar préstamo
         </button>
       </div>
     </form>
