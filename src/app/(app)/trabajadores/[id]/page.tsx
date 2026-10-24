@@ -57,8 +57,9 @@ export default async function EditarTrabajador({ params }: { params: Promise<{ i
               <span className="valor">{dinero(diario)}</span>
               <span className="nota">
                 Salario diario ({esSemanaCompleta(t) ? "semanal ÷ 7, el descanso también se paga" : `semanal ÷ ${t.dias_trabajo.length} días pactados`}).
-                Una falta sin goce descuenta {dinero(porFalta)}
-                {esSemanaCompleta(t) ? `: el día más ${dinero(porFalta - diario)} del descanso (LFT art. 69 y 72).` : "."}
+                {esSemanaCompleta(t)
+                  ? ` Una falta sin aviso descuenta ${dinero(porFalta)}: el día más ${dinero(porFalta - diario)} del descanso (LFT art. 69 y 72). Con permiso solo se descuenta el día, ${dinero(diario)}.`
+                  : ` Una falta sin aviso o con permiso descuenta ${dinero(porFalta)}.`}
               </span>
             </>
           ) : (

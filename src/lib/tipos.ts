@@ -106,7 +106,7 @@ export interface Falta {
 
 export const TIPOS_FALTA: Record<TipoFalta, { nombre: string; ayuda: string; descuenta: boolean }> = {
   sin_aviso: { nombre: "Sin aviso (injustificada)", ayuda: "No vino y no dijo nada", descuenta: true },
-  sin_goce: { nombre: "Permiso sin goce de sueldo", ayuda: "Pidió el día y se acordó no pagárselo", descuenta: true },
+  sin_goce: { nombre: "Permiso sin goce de sueldo", ayuda: "Pidió el día; no se le paga ese día, sin castigo", descuenta: true },
   justificada: { nombre: "Justificada, con pago completo", ayuda: "Se acordó pagarle completo", descuenta: false },
 };
 

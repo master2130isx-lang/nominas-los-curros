@@ -23,7 +23,7 @@ export function salarioDiario(t: Datos): number | null {
   return redondear(t.tarifa / (esSemanaCompleta(t) ? 7 : t.dias_trabajo.length));
 }
 
-/** Lo que se descuenta por una falta completa sin goce (semanal ÷ días pactados). */
+/** Lo que se descuenta por una falta completa sin aviso (semanal ÷ días pactados). */
 export function descuentoPorFalta(t: Datos): number | null {
   if (t.forma_pago !== "semana" || t.dias_trabajo.length === 0) return null;
   return redondear(t.tarifa / t.dias_trabajo.length);

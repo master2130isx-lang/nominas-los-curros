@@ -58,8 +58,9 @@ export function textoDiasCorto(dias: number[]): string {
 
 /**
  * Descuento de una falta en semana fija: sueldo semanal ÷ días pactados.
- * Con 6 días (y 1 de descanso) equivale al salario diario (÷ 7) más la parte
- * proporcional del descanso (LFT art. 69 y 72).
+ * Con 6 días (y 1 de descanso) la falta sin aviso es el salario diario (÷ 7)
+ * más la parte proporcional del descanso (LFT art. 69 y 72); el permiso sin
+ * goce es solo el salario diario.
  */
 export function lineaFalta(f: FaltaCaptura, tarifa: number, diasPactados: number): LineaRecibo {
   const inicio = f.fraccion < 1 ? "Media falta" : "Falta";
@@ -67,9 +68,12 @@ export function lineaFalta(f: FaltaCaptura, tarifa: number, diasPactados: number
   if (f.tipo === "justificada") {
     return { tipo: "falta", descripcion: `${inicio} justificada el ${fechaConDia(f.fecha)}, se paga completo${nota}`, importe: 0 };
   }
-  const monto = diasPactados > 0 ? redondear((tarifa / diasPactados) * f.fraccion) : 0;
+  let monto = diasPactados > 0 ? redondear((tarifa / diasPactados) * f.fraccion) : 0;
   let descripcion = `${inicio}${f.tipo === "sin_aviso" ? " sin aviso" : " con permiso sin goce"} el ${fechaConDia(f.fecha)}`;
-  if (diasPactados === 6) {
+  if (diasPactados === 6 && f.tipo === "sin_goce") {
+    monto = redondear((tarifa / 7) * f.fraccion);
+    descripcion += `: solo el día ${tarifaTexto(monto)}`;
+  } else if (diasPactados === 6) {
     const diario = redondear((tarifa / 7) * f.fraccion);
     descripcion += `: día ${tarifaTexto(diario)} + parte del descanso ${tarifaTexto(redondear(monto - diario))}`;
   } else {

@@ -105,10 +105,10 @@ describe("faltas en semana fija", () => {
     expect(r.lineas.map((l) => [l.descripcion, l.importe])).toEqual([
       ["1 semana(s) × $2,100.00", 2100],
       ["Falta sin aviso el miércoles 21/10/2026: día $300.00 + parte del descanso $50.00", -350],
-      ["Media falta con permiso sin goce el viernes 23/10/2026: día $150.00 + parte del descanso $25.00 (cita médica)", -175],
+      ["Media falta con permiso sin goce el viernes 23/10/2026: solo el día $150.00 (cita médica)", -150],
       ["Falta justificada el sábado 24/10/2026, se paga completo (permiso)", 0],
     ]);
-    expect(r.total).toBe(1575);
+    expect(r.total).toBe(1600);
   });
 
   it("con María ($2,400) la falta es $400: $342.86 del día y $57.14 del descanso", () => {
