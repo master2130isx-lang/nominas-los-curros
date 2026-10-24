@@ -1,0 +1,96 @@
+import Link from "next/link";
+import { ReciboHoja } from "@/componentes/ReciboHoja";
+import { esFecha, semanaDe } from "@/lib/fechas";
+import { rango } from "@/lib/formato";
+import { cargarRecibos } from "@/lib/recibos";
+import { requerirSesion } from "@/lib/sesion";
+import type { Recibo } from "@/lib/tipos";
+import { BotonImprimir } from "./BotonImprimir";
+
+const UUID = /^[0-9a-f-]{36}$/i;
+
+export default async function Imprimir({
+  searchParams,
+}: {
+  searchParams: Promise<{ ids?: string; semana?: string; copia?: string }>;
+}) {
+  const { supabase } = await requerirSesion();
+  const filtros = await searchParams;
+  const conCopia = filtros.copia !== "no";
+
+  let titulo = "Imprimir recibo";
+  let recibos: Recibo[] = [];
+  if (filtros.semana && esFecha(filtros.semana)) {
+    const { inicio, fin } = semanaDe(filtros.semana);
+    titulo = `Recibos de la semana del ${rango(inicio, fin)}`;
+    const { data } = await supabase
+      .from("recibos")
+      .select("*")
+      .gte("fecha_pago", inicio)
+      .lte("fecha_pago", fin)
+      .neq("estado", "cancelado")
+      .order("folio")
+      .returns<Recibo[]>();
+    recibos = data ?? [];
+  } else {
+    const ids = (filtros.ids ?? "").split(",").filter((x) => UUID.test(x));
+    if (ids.length) {
+      const { data } = await supabase.from("recibos").select("*").in("id", ids).order("folio").returns<Recibo[]>();
+      recibos = data ?? [];
+    }
+  }
+  const completos = await cargarRecibos(supabase, recibos);
+  const imprimibles = completos.filter((c) => c.recibo.estado !== "cancelado");
+  const params = new URLSearchParams(Object.entries(filtros).filter(([, v]) => v) as [string, string][]);
+  params.set("copia", conCopia ? "no" : "si");
+
+  return (
+    <div style={{ padding: "24px 16px", background: "var(--fondo)", minHeight: "100vh" }}>
+      <div className="barra-impresion no-imprimir">
+        <div>
+          <h1 style={{ fontSize: 22 }}>{titulo}</h1>
+          <div style={{ color: "var(--tenue)" }}>
+            {imprimibles.length} {imprimibles.length === 1 ? "recibo" : "recibos"} · hoja carta,{" "}
+            {conCopia ? "original arriba y copia abajo" : "dos recibos por hoja, sin copia"}
+          </div>
+        </div>
+        <div className="acciones">
+          <Link className="boton chico" href="/">
+            Volver
+          </Link>
+          <Link className="boton chico" href={`/imprimir?${params}`}>
+            {conCopia ? "Sin copia (ahorra papel)" : "Con copia"}
+          </Link>
+          <BotonImprimir ids={imprimibles.map((c) => c.recibo.id)} />
+        </div>
+      </div>
+      {imprimibles.length === 0 ? (
+        <p className="vacio no-imprimir">No hay recibos para imprimir.</p>
+      ) : conCopia ? (
+        imprimibles.map(({ recibo, hoja }) => {
+          const re = recibo.impresiones > 0 ? "REIMPRESIÓN · " : "";
+          return (
+            <div className="pliego" key={recibo.id}>
+              <div className="media">
+                <ReciboHoja datos={hoja} marca={`${re}ORIGINAL`} />
+              </div>
+              <div className="media">
+                <ReciboHoja datos={hoja} marca={`${re}COPIA PARA EL TRABAJADOR`} />
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        Array.from({ length: Math.ceil(imprimibles.length / 2) }, (_, i) => imprimibles.slice(i * 2, i * 2 + 2)).map((par) => (
+          <div className="pliego" key={par[0].recibo.id}>
+            {par.map(({ recibo, hoja }) => (
+              <div className="media" key={recibo.id}>
+                <ReciboHoja datos={hoja} marca={recibo.impresiones > 0 ? "REIMPRESIÓN" : undefined} />
+              </div>
+            ))}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
