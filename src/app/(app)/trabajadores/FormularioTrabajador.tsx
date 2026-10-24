@@ -1,13 +1,15 @@
 "use client";
 
-import { useActionState } from "react";
-import { FORMAS_PAGO, TIPOS_TRABAJADOR, type Trabajador } from "@/lib/tipos";
+import { useActionState, useState } from "react";
+import { DIAS_SEMANA } from "@/lib/programa";
+import { FORMAS_PAGO, TIPOS_TRABAJADOR, type PagoCuando, type Trabajador } from "@/lib/tipos";
 import type { EstadoFormulario } from "../recibos/acciones";
 import { guardarTrabajador } from "./acciones";
 
 export function FormularioTrabajador({ trabajador }: { trabajador?: Trabajador }) {
   const [estado, accion, enviando] = useActionState<EstadoFormulario, FormData>(guardarTrabajador, { error: null });
   const t = trabajador;
+  const [pagoCuando, setPagoCuando] = useState<PagoCuando>(t?.pago_cuando ?? "cada_dia");
   return (
     <form action={accion} className="caja relleno formulario" style={{ maxWidth: 760 }}>
       {t && <input type="hidden" name="id" value={t.id} />}
@@ -51,11 +53,44 @@ export function FormularioTrabajador({ trabajador }: { trabajador?: Trabajador }
           <input id="pasaje" name="pasaje" type="number" inputMode="decimal" min="0" step="0.5" defaultValue={t?.pasaje ?? 0} />
         </div>
         <div className="campo">
-          <label htmlFor="dia_pago">Día de pago</label>
-          <input id="dia_pago" name="dia_pago" type="text" defaultValue={t?.dia_pago ?? ""} placeholder="Sábado, diario…" />
+          <label htmlFor="pago_cuando">¿Cuándo se le paga?</label>
+          <select id="pago_cuando" name="pago_cuando" value={pagoCuando} onChange={(e) => setPagoCuando(e.target.value as PagoCuando)}>
+            <option value="dia_semana">Un día fijo de la semana</option>
+            <option value="cada_dia">Cada día que trabaja</option>
+            <option value="al_terminar">Al terminar su trabajo</option>
+          </select>
         </div>
+        {pagoCuando === "dia_semana" ? (
+          <div className="campo">
+            <label htmlFor="pago_dia_semana">Día en que cobra</label>
+            <select id="pago_dia_semana" name="pago_dia_semana" defaultValue={t?.pago_dia_semana ?? 6} required>
+              {DIAS_SEMANA.map((n, i) => (
+                <option key={n} value={i + 1}>
+                  {n.charAt(0).toUpperCase() + n.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div />
+        )}
+        <fieldset className="campo dias-trabajo">
+          <legend>
+            Días que trabaja <span className="ayuda">· así sabemos a quién le toca cobrar cada día</span>
+          </legend>
+          <div className="dias">
+            {DIAS_SEMANA.map((n, i) => (
+              <label key={n} className="casilla">
+                <input type="checkbox" name="dias_trabajo" value={i + 1} defaultChecked={t?.dias_trabajo.includes(i + 1)} />
+                {n.charAt(0).toUpperCase() + n.slice(1, 3)}
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <div className="campo">
-          <label htmlFor="horario">Días u horario habitual</label>
+          <label htmlFor="horario">
+            Horario <span className="ayuda">· opcional, ej. 7am a 2pm</span>
+          </label>
           <input id="horario" name="horario" type="text" defaultValue={t?.horario ?? ""} />
         </div>
         <div className="campo">

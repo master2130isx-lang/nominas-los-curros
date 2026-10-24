@@ -44,7 +44,7 @@ export default async function DetalleRecibo({
         </div>
         <div className="acciones">
           <Link className="boton chico" href="/">
-            Volver a la semana
+            Volver a los pagos de hoy
           </Link>
           {!cancelado && (
             <Link className="boton primario" href={`/imprimir?ids=${recibo.id}`}>

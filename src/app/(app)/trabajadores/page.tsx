@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { dinero } from "@/lib/formato";
+import { textoDiaPago, textoDias } from "@/lib/programa";
 import { requerirSesion } from "@/lib/sesion";
 import { FORMAS_PAGO, TIPOS_TRABAJADOR, type Trabajador } from "@/lib/tipos";
 
@@ -35,7 +36,7 @@ export default async function Trabajadores() {
                 <th>Forma de pago</th>
                 <th className="num">Tarifa</th>
                 <th>Día de pago</th>
-                <th>Horario</th>
+                <th>Días que trabaja</th>
               </tr>
             </thead>
             <tbody>
@@ -56,8 +57,11 @@ export default async function Trabajadores() {
                     {dinero(Number(t.tarifa))}
                     {Number(t.pasaje) > 0 && <span className="secundario">+ {dinero(Number(t.pasaje))} pasaje</span>}
                   </td>
-                  <td>{t.dia_pago ?? "—"}</td>
-                  <td>{t.horario ?? "—"}</td>
+                  <td>{textoDiaPago(t)}</td>
+                  <td>
+                    {textoDias(t.dias_trabajo)}
+                    {t.horario && <span className="secundario">{t.horario}</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>

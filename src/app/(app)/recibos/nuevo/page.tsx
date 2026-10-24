@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { hoy } from "@/lib/fechas";
+import { esFecha, hoy } from "@/lib/fechas";
 import { requerirSesion } from "@/lib/sesion";
 import type { Adelanto, Trabajador } from "@/lib/tipos";
 import { FormularioRecibo } from "./FormularioRecibo";
@@ -7,10 +7,11 @@ import { FormularioRecibo } from "./FormularioRecibo";
 export default async function NuevoRecibo({
   searchParams,
 }: {
-  searchParams: Promise<{ trabajador?: string }>;
+  searchParams: Promise<{ trabajador?: string; fecha?: string }>;
 }) {
   const { supabase, perfil } = await requerirSesion();
-  const { trabajador } = await searchParams;
+  const { trabajador, fecha } = await searchParams;
+  const dia = fecha && esFecha(fecha) ? fecha : hoy();
   const [{ data: trabajadores }, { data: adelantos }] = await Promise.all([
     supabase.from("trabajadores").select("*").eq("activo", true).order("nombre").returns<Trabajador[]>(),
     supabase.from("adelantos").select("*").is("recibo_id", null).order("fecha").returns<Adelanto[]>(),
@@ -23,8 +24,8 @@ export default async function NuevoRecibo({
           <h1>Nuevo recibo</h1>
           <div className="sub">Captura lo trabajado y el recibo se arma solo mientras escribes.</div>
         </div>
-        <Link className="boton chico" href="/">
-          Volver a la semana
+        <Link className="boton chico" href={dia === hoy() ? "/" : `/?fecha=${dia}`}>
+          Volver a los pagos del día
         </Link>
       </div>
       {(trabajadores ?? []).length === 0 ? (
@@ -36,7 +37,7 @@ export default async function NuevoRecibo({
           trabajadores={(trabajadores ?? []).map((t) => ({ ...t, tarifa: Number(t.tarifa), pasaje: Number(t.pasaje) }))}
           adelantos={(adelantos ?? []).map((a) => ({ ...a, monto: Number(a.monto) }))}
           inicial={trabajador}
-          hoy={hoy()}
+          fecha={dia}
           entrego={perfil.nombre}
         />
       )}

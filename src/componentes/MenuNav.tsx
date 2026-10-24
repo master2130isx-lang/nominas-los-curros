@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ENLACES = [
-  { href: "/", texto: "Pagos de la semana" },
+  { href: "/", texto: "Pagos del día" },
+  { href: "/semana", texto: "Semana" },
   { href: "/recibos/nuevo", texto: "Nuevo recibo" },
   { href: "/recibos", texto: "Recibos" },
   { href: "/trabajadores", texto: "Trabajadores" },

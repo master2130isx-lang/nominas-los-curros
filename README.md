@@ -6,7 +6,11 @@ Hecha con Next.js (en Vercel) y Supabase (base de datos, cuentas y fotos de reci
 
 ## Qué hace
 
-- **Pagos de la semana** (lunes a domingo): quién ya cobró, quién falta, total pagado y recibos sin foto firmada.
+- **Pagos del día** (la pantalla de inicio): a quién le toca cobrar hoy, ayer o mañana según su día de pago
+  y los días que trabaja. Se palomean y se hacen e imprimen todos los recibos del día de una vez. También
+  avisa de pagos que se quedaron pendientes en días anteriores.
+- **Semana** (lunes a domingo): quién ya cobró, quién falta, total pagado y recibos sin foto firmada,
+  agrupado por día de pago.
 - **Nuevo recibo**: escoges al trabajador, marcas los días o escribes horas, turnos o tareas, agregas extras o
   descuentos con su motivo y descuentas adelantos. El recibo se arma en pantalla mientras capturas.
 - **Folio consecutivo**: lo asigna la base de datos al guardar; no se repite ni se salta.
@@ -29,6 +33,10 @@ Hecha con Next.js (en Vercel) y Supabase (base de datos, cuentas y fotos de reci
 2. En **SQL Editor**, corre en orden el contenido de:
    - `supabase/migrations/20261024000000_inicial.sql`
    - `supabase/migrations/20261024000001_almacenamiento.sql`
+   - `supabase/migrations/20261025000000_dia_de_pago.sql`
+
+   Cada vez que se agrega un archivo nuevo en `supabase/migrations`, hay que correrlo una vez en el
+   SQL Editor (solo el nuevo, en orden de nombre).
 3. En **Authentication → Sign In / Providers**, desactiva **Allow new users to sign up**. Así nadie puede
    crearse una cuenta por su cuenta.
 4. En **Authentication → Users → Add user**, crea tu usuario y el de cada encargado (correo y contraseña,
