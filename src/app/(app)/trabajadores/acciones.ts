@@ -43,6 +43,7 @@ export async function guardarTrabajador(_previo: EstadoFormulario, form: FormDat
   if (pagoCuando === "dia_semana" && !(pagoDia >= 1 && pagoDia <= 7)) return { error: "Escoge qué día de la semana cobra." };
   if ((entrada === null) !== (salida === null)) return { error: "Escoge la hora de entrada y la de salida." };
   if ((entrada && !hhmm.test(entrada)) || (salida && !hhmm.test(salida))) return { error: "La hora no es válida." };
+  if (entrada && entrada === salida) return { error: "La hora de salida debe ser distinta a la de entrada." };
   // Con entrada y salida se calculan las horas; sin ellas se conserva el horario viejo escrito a mano.
   const horario: { horario: string | null; horas_dia?: number | null } =
     entrada && salida

@@ -222,3 +222,15 @@ fieldset.dias-trabajo legend {
 .dia input:focus-visible + span { outline: 2px solid var(--acento); outline-offset: 2px; }
 .horas-calculadas { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 17px; }
 .grupo > p.ayuda { font-size: 13px; color: var(--tenue); }
+.nota-campo {
+  margin: 0;
+  align-self: end;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--acento-suave);
+  color: var(--acento-oscuro);
+  font-size: 14px;
+}

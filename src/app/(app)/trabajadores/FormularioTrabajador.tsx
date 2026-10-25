@@ -98,7 +98,7 @@ export function FormularioTrabajador({ trabajador }: { trabajador?: Trabajador }
               <option value="al_terminar">Al terminar su trabajo</option>
             </select>
           </div>
-          {pagoCuando === "dia_semana" && (
+          {pagoCuando === "dia_semana" ? (
             <div className="campo">
               <label htmlFor="pago_dia_semana">Día en que cobra</label>
               <select id="pago_dia_semana" name="pago_dia_semana" defaultValue={t?.pago_dia_semana ?? 6} required>
@@ -109,6 +109,12 @@ export function FormularioTrabajador({ trabajador }: { trabajador?: Trabajador }
                 ))}
               </select>
             </div>
+          ) : (
+            <p className="nota-campo">
+              {pagoCuando === "cada_dia"
+                ? "Le toca cobrar cada día que marques en Horario."
+                : "Le toca cobrar el día que termina su trabajo, según los días que marques en Horario."}
+            </p>
           )}
         </div>
         <p className="ayuda" style={{ margin: 0 }}>
@@ -134,17 +140,19 @@ export function FormularioTrabajador({ trabajador }: { trabajador?: Trabajador }
         <div className="rejilla-tres">
           <div className="campo">
             <label htmlFor="hora_entrada">Entra a las</label>
-            <input id="hora_entrada" name="hora_entrada" type="time" step="900" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
+            <input id="hora_entrada" name="hora_entrada" type="time" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
           </div>
           <div className="campo">
             <label htmlFor="hora_salida">Sale a las</label>
-            <input id="hora_salida" name="hora_salida" type="time" step="900" value={salida} onChange={(e) => setSalida(e.target.value)} />
+            <input id="hora_salida" name="hora_salida" type="time" value={salida} onChange={(e) => setSalida(e.target.value)} />
           </div>
           <div className="campo">
             <span className="etiqueta">Horas por día</span>
             <div className="horas-calculadas" aria-live="polite">
               {horas === null ? (
                 <span className="ayuda">Escoge la entrada y la salida</span>
+              ) : entrada === salida ? (
+                <span className="pastilla error">La salida debe ser distinta a la entrada</span>
               ) : (
                 <>
                   <strong>{cantidad(horas)} h</strong>

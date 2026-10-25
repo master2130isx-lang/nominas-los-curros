@@ -91,7 +91,7 @@ export default async function Faltas({ searchParams }: { searchParams: Promise<{
                   </td>
                   <td>
                     <PastillaFalta tipo={f.tipo} fraccion={f.fraccion} />
-                    <span className="secundario">{TIPOS_FALTA[f.tipo].descuenta ? "Se descuenta" : "No se descuenta"}</span>
+                    <span className="secundario">{TIPOS_FALTA[f.tipo].descuento}</span>
                   </td>
                   <td>{f.nota ?? "—"}</td>
                   <td>
