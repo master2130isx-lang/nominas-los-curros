@@ -157,7 +157,7 @@ export function agruparPendientes<T extends { id: string }>(
   return [...grupos.values()];
 }
 
-/** Iniciales para el avatar: "Ana María López" → "AL". */
+/** Iniciales para el avatar: "Ana Lucía Prueba" → "AP". */
 export function iniciales(nombre: string): string {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
   if (!partes.length) return "?";

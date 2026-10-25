@@ -117,7 +117,7 @@ describe("pendientes para ponerse al corriente", () => {
   });
 
   it("arma iniciales y un tono estable para el avatar", () => {
-    expect(iniciales("Ana María López")).toBe("AL");
+    expect(iniciales("Ana Lucía Prueba")).toBe("AP");
     expect(iniciales("rocío")).toBe("RO");
     expect(iniciales("  ")).toBe("?");
     expect(tonoAvatar("Ana")).toBe(tonoAvatar("Ana"));
