@@ -101,7 +101,7 @@ test("Asistencia: los días ya pagados muestran el folio y no se pueden marcar",
     commit;`);
   await page.goto(`/asistencia?semana=${LUNES_PASADO}`);
   const celda = page.locator("tbody tr", { hasText: "Lupe Demo" }).locator("td").nth(4).locator(".celda");
-  await expect(celda).toContainText("F 0001");
+  await expect(celda).toContainText("F0001");
   await expect(celda).toHaveAttribute("href", /\/recibos\//);
   await expect(celda).toHaveAccessibleName(/No se puede marcar/);
 });
