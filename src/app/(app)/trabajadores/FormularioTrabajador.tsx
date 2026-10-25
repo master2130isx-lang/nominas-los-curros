@@ -10,7 +10,7 @@ import { guardarTrabajador } from "./acciones";
 
 const mayuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function FormularioTrabajador({ trabajador }: { trabajador?: Trabajador }) {
+export function FormularioTrabajador({ trabajador, esAdmin = true }: { trabajador?: Trabajador; esAdmin?: boolean }) {
   const [estado, accion, enviando] = useActionState<EstadoFormulario, FormData>(guardarTrabajador, { error: null });
   const t = trabajador;
   const [pagoCuando, setPagoCuando] = useState<PagoCuando>(t?.pago_cuando ?? "cada_dia");
@@ -20,6 +20,8 @@ export function FormularioTrabajador({ trabajador }: { trabajador?: Trabajador }
   const horas = entrada && salida ? horasEntre(entrada, salida) : null;
   // Un horario viejo escrito a mano que no se pudo leer se conserva mientras no se escojan horas.
   const horarioAnterior = t?.horario && !leido ? t.horario : null;
+  // Al editar, la tarifa y la baja solo las cambia el administrador.
+  const bloqueado = Boolean(t) && !esAdmin;
 
   return (
     <form action={accion} className="caja relleno formulario formulario-trabajador">
@@ -80,7 +82,23 @@ export function FormularioTrabajador({ trabajador }: { trabajador?: Trabajador }
           </div>
           <div className="campo">
             <label htmlFor="tarifa">Tarifa acordada (MXN)</label>
-            <input id="tarifa" name="tarifa" type="number" inputMode="decimal" min="0" step="0.5" defaultValue={t?.tarifa} required />
+            <input
+              id="tarifa"
+              name="tarifa"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.5"
+              defaultValue={t?.tarifa}
+              required
+              readOnly={bloqueado}
+              aria-describedby={bloqueado ? "tarifa-ayuda" : undefined}
+            />
+            {bloqueado && (
+              <span id="tarifa-ayuda" className="ayuda">
+                Solo el administrador cambia la tarifa.
+              </span>
+            )}
           </div>
           <div className="campo">
             <label htmlFor="pasaje">
@@ -175,15 +193,25 @@ export function FormularioTrabajador({ trabajador }: { trabajador?: Trabajador }
         <label htmlFor="notas">Notas</label>
         <textarea id="notas" name="notas" defaultValue={t?.notas ?? ""} />
       </div>
-      {t && (
-        <label className="casilla" style={{ alignSelf: "flex-start" }}>
-          <input type="checkbox" name="activo" defaultChecked={t.activo} />
-          Sigue trabajando (si lo desmarcas ya no aparece para nuevos pagos)
-        </label>
+      {t &&
+        (bloqueado ? (
+          <p className="ayuda" style={{ margin: 0 }}>
+            {t.activo ? "Sigue trabajando." : "Dado de baja."} Solo el administrador da de baja o reactiva a un trabajador.
+            {t.activo && <input type="hidden" name="activo" value="on" />}
+          </p>
+        ) : (
+          <label className="casilla" style={{ alignSelf: "flex-start" }}>
+            <input type="checkbox" name="activo" defaultChecked={t.activo} />
+            Sigue trabajando (si lo desmarcas ya no aparece para nuevos pagos)
+          </label>
+        ))}
+      {estado.error && (
+        <p className="alerta aparece" role="alert">
+          {estado.error}
+        </p>
       )}
-      {estado.error && <p className="alerta">{estado.error}</p>}
       <div>
-        <button type="submit" className="boton primario" disabled={enviando}>
+        <button type="submit" className="boton primario" disabled={enviando} aria-busy={enviando}>
           {enviando ? "Guardando…" : "Guardar"}
         </button>
       </div>

@@ -3,14 +3,57 @@ import { notFound } from "next/navigation";
 import { dinero, fechaLarga } from "@/lib/formato";
 import { compararConMinimo, descuentoPorFalta, esSemanaCompleta, salarioDiario, SALARIO_MINIMO_DIARIO } from "@/lib/ley";
 import { requerirSesion } from "@/lib/sesion";
-import type { Trabajador } from "@/lib/tipos";
+import { FORMAS_PAGO, type Trabajador } from "@/lib/tipos";
+import { esUuid } from "@/lib/validacion";
 import { FormularioTrabajador } from "../FormularioTrabajador";
 import { SubirConstancia } from "./SubirConstancia";
 
+interface CambioBitacora {
+  id: number;
+  campo: string;
+  valor_anterior: string | null;
+  valor_nuevo: string | null;
+  cambiado_en: string;
+  perfiles: { nombre: string } | null;
+}
+
+const CAMPOS: Record<string, string> = { alta: "Alta", tarifa: "Tarifa", pasaje: "Pasaje", forma_pago: "Forma de pago", activo: "Activo" };
+
+function valorBitacora(campo: string, valor: string | null): string {
+  if (valor === null) return "—";
+  if (campo === "tarifa" || campo === "pasaje") return dinero(Number(valor));
+  if (campo === "forma_pago") return FORMAS_PAGO[valor as keyof typeof FORMAS_PAGO] ?? valor;
+  if (campo === "activo") return valor === "true" ? "Sí" : "Dado de baja";
+  if (campo === "alta") {
+    const [forma, tarifa] = valor.split(" ");
+    return `${FORMAS_PAGO[forma as keyof typeof FORMAS_PAGO] ?? forma} · ${dinero(Number(tarifa))}`;
+  }
+  return valor;
+}
+
+const fechaHora = new Intl.DateTimeFormat("es-MX", {
+  timeZone: "America/Mexico_City",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 export default async function EditarTrabajador({ params }: { params: Promise<{ id: string }> }) {
-  const { supabase } = await requerirSesion();
+  const { supabase, perfil } = await requerirSesion();
   const { id } = await params;
-  const { data: datos } = await supabase.from("trabajadores").select("*").eq("id", id).maybeSingle<Trabajador>();
+  if (!esUuid(id)) notFound();
+  const [{ data: datos }, { data: bitacora }] = await Promise.all([
+    supabase.from("trabajadores").select("*").eq("id", id).maybeSingle<Trabajador>(),
+    supabase
+      .from("trabajadores_bitacora")
+      .select("id, campo, valor_anterior, valor_nuevo, cambiado_en, perfiles(nombre)")
+      .eq("trabajador_id", id)
+      .order("cambiado_en", { ascending: false })
+      .limit(20)
+      .returns<CambioBitacora[]>(),
+  ]);
   if (!datos) notFound();
   const t = {
     ...datos,
@@ -115,7 +158,37 @@ export default async function EditarTrabajador({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <FormularioTrabajador trabajador={t} />
+      <FormularioTrabajador trabajador={t} esAdmin={perfil.rol === "admin"} />
+
+      <section className="caja relleno formulario" style={{ maxWidth: 820 }} aria-labelledby="titulo-bitacora">
+        <div>
+          <h2 id="titulo-bitacora">Historial de cambios</h2>
+          <p className="ayuda" style={{ margin: "4px 0 0" }}>
+            Tarifa, pasaje, forma de pago y bajas: quién los cambió y cuándo. No se puede editar.
+          </p>
+        </div>
+        {(bitacora ?? []).length === 0 ? (
+          <p className="ayuda" style={{ margin: 0 }}>
+            Sin cambios registrados todavía.
+          </p>
+        ) : (
+          <ul className="bitacora">
+            {(bitacora ?? []).map((c) => (
+              <li key={c.id}>
+                <span>
+                  <strong>{CAMPOS[c.campo] ?? c.campo}</strong>:{" "}
+                  {c.campo === "alta"
+                    ? valorBitacora(c.campo, c.valor_nuevo)
+                    : `${valorBitacora(c.campo, c.valor_anterior)} → ${valorBitacora(c.campo, c.valor_nuevo)}`}
+                </span>
+                <span className="cuando">
+                  {c.perfiles?.nombre ?? "Desde Supabase"} · {fechaHora.format(new Date(c.cambiado_en))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </>
   );
 }

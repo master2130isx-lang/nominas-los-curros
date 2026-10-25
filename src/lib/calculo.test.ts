@@ -27,14 +27,14 @@ describe("calcularRecibo", () => {
     const dia = calcularRecibo({ formaPago: "dia", tarifa: 500, pasaje: 30, cantidad: 1.5, extras: [], adelantos: [] });
     expect(dia.lineas[0].descripcion).toBe("1.5 día(s) × $500.00");
     expect(dia.total).toBe(795);
-    const semana = calcularRecibo({ formaPago: "semana", tarifa: 2100, pasaje: 50, cantidad: 1, extras: [], adelantos: [] });
-    expect(semana.total).toBe(2150);
+    const semana = calcularRecibo({ formaPago: "semana", tarifa: 2184, pasaje: 50, cantidad: 1, extras: [], adelantos: [] });
+    expect(semana.total).toBe(2234);
   });
 
   it("resta préstamos e ignora extras en cero", () => {
     const r = calcularRecibo({
       formaPago: "semana",
-      tarifa: 2100,
+      tarifa: 2184,
       pasaje: 0,
       cantidad: 1,
       extras: [
@@ -43,7 +43,7 @@ describe("calcularRecibo", () => {
       ],
       adelantos: [],
     });
-    expect(r.total).toBe(1800);
+    expect(r.total).toBe(1884);
     expect(r.lineas).toHaveLength(2);
   });
 });
@@ -52,7 +52,7 @@ describe("pesosConLetra", () => {
   it.each([
     [1000, "Mil pesos 00/100 M.N."],
     [1, "Un peso 00/100 M.N."],
-    [2100, "Dos mil cien pesos 00/100 M.N."],
+    [2184, "Dos mil ciento ochenta y cuatro pesos 00/100 M.N."],
     [1080.5, "Mil ochenta pesos 50/100 M.N."],
     [21, "Veintiún pesos 00/100 M.N."],
     [795, "Setecientos noventa y cinco pesos 00/100 M.N."],
@@ -91,11 +91,11 @@ describe("fechas", () => {
 });
 
 describe("faltas en semana fija", () => {
-  const celia = { formaPago: "semana" as const, tarifa: 2100, pasaje: 0, cantidad: 1, extras: [], adelantos: [], diasTrabajo: [1, 2, 4, 5, 6, 7] };
+  const semanal = { formaPago: "semana" as const, tarifa: 2184, pasaje: 0, cantidad: 1, extras: [], adelantos: [], diasTrabajo: [1, 2, 4, 5, 6, 7] };
 
   it("descuenta el día más la parte del descanso, igual que la base de datos", () => {
     const r = calcularRecibo({
-      ...celia,
+      ...semanal,
       faltas: [
         { fecha: "2026-10-24", tipo: "justificada", fraccion: 1, nota: "permiso" },
         { fecha: "2026-10-23", tipo: "sin_goce", fraccion: 0.5, nota: "cita médica" },
@@ -103,36 +103,36 @@ describe("faltas en semana fija", () => {
       ],
     });
     expect(r.lineas.map((l) => [l.descripcion, l.importe])).toEqual([
-      ["1 semana(s) × $2,100.00", 2100],
-      ["Falta sin aviso el miércoles 21/10/2026: día $300.00 + parte del descanso $50.00", -350],
-      ["Media falta con permiso sin goce el viernes 23/10/2026: solo el día $150.00 (cita médica)", -150],
+      ["1 semana(s) × $2,184.00", 2184],
+      ["Falta sin aviso el miércoles 21/10/2026: día $312.00 + parte del descanso $52.00", -364],
+      ["Media falta con permiso sin goce el viernes 23/10/2026: solo el día $156.00 (cita médica)", -156],
       ["Falta justificada el sábado 24/10/2026, se paga completo (permiso)", 0],
     ]);
-    expect(r.total).toBe(1600);
+    expect(r.total).toBe(1664);
   });
 
-  it("con María ($2,400) la falta es $400: $342.86 del día y $57.14 del descanso", () => {
-    const r = calcularRecibo({ ...celia, tarifa: 2400, faltas: [{ fecha: "2026-10-20", tipo: "sin_aviso", fraccion: 1, nota: null }] });
+  it("con $2,800 la falta es $466.67: $400.00 del día y $66.67 del descanso", () => {
+    const r = calcularRecibo({ ...semanal, tarifa: 2800, faltas: [{ fecha: "2026-10-20", tipo: "sin_aviso", fraccion: 1, nota: null }] });
     expect(r.lineas[1]).toEqual({
       tipo: "falta",
-      descripcion: "Falta sin aviso el martes 20/10/2026: día $342.86 + parte del descanso $57.14",
-      importe: -400,
+      descripcion: "Falta sin aviso el martes 20/10/2026: día $400.00 + parte del descanso $66.67",
+      importe: -466.67,
     });
   });
 
   it("si no trabaja 6 días, descuenta la parte de los días pactados", () => {
-    const r = calcularRecibo({ ...celia, tarifa: 1000, diasTrabajo: [1, 2, 3, 4, 5, 6, 7], faltas: [{ fecha: "2026-10-20", tipo: "sin_aviso", fraccion: 1, nota: null }] });
+    const r = calcularRecibo({ ...semanal, tarifa: 1000, diasTrabajo: [1, 2, 3, 4, 5, 6, 7], faltas: [{ fecha: "2026-10-20", tipo: "sin_aviso", fraccion: 1, nota: null }] });
     expect(r.lineas[1].descripcion).toBe("Falta sin aviso el martes 20/10/2026: 1 de 7 días pactados");
     expect(r.lineas[1].importe).toBe(-142.86);
   });
 
   it("no toca a los que cobran por día", () => {
-    const r = calcularRecibo({ ...celia, formaPago: "dia", tarifa: 400, faltas: [{ fecha: "2026-10-20", tipo: "sin_aviso", fraccion: 1, nota: null }] });
+    const r = calcularRecibo({ ...semanal, formaPago: "dia", tarifa: 400, faltas: [{ fecha: "2026-10-20", tipo: "sin_aviso", fraccion: 1, nota: null }] });
     expect(r.lineas).toHaveLength(1);
   });
 
   it("describe la jornada reducida", () => {
-    const r = calcularRecibo({ ...celia, tarifa: 1000, diasTrabajo: [1, 2, 3, 4, 5, 6, 7], horasDia: 2 });
+    const r = calcularRecibo({ ...semanal, tarifa: 1000, diasTrabajo: [1, 2, 3, 4, 5, 6, 7], horasDia: 2 });
     expect(r.lineas[0].descripcion).toBe("1 semana(s) × $1,000.00 · jornada reducida de 2 h diarias (todos los días)");
   });
 });
@@ -141,7 +141,7 @@ describe("abonos a préstamos", () => {
   it("aplica el abono primero al más viejo y dice cuánto resta, igual que la base de datos", () => {
     const r = calcularRecibo({
       formaPago: "semana",
-      tarifa: 2100,
+      tarifa: 2184,
       pasaje: 0,
       cantidad: 1,
       extras: [],
@@ -155,7 +155,7 @@ describe("abonos a préstamos", () => {
       { tipo: "adelanto", descripcion: "Abono a préstamo del 10/10/2026 (medicina), queda pagado", importe: -300 },
       { tipo: "adelanto", descripcion: "Abono a préstamo del 20/10/2026, resta $600.00", importe: -200 },
     ]);
-    expect(r.total).toBe(1600);
+    expect(r.total).toBe(1684);
   });
 
   it("con abono de $0 no agrega nada", () => {
