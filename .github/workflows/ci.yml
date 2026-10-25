@@ -9,12 +9,13 @@ jobs:
   revisar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm audit --audit-level=high
       - run: npm test
       - run: npm run lint
       - run: npm run build
@@ -22,3 +23,39 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://ejemplo.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: clave-de-ejemplo
           NEXT_TELEMETRY_DISABLED: 1
+
+  # RLS, triggers y funciones contra un Supabase local, y flujos completos en
+  # celular (375 px) con Playwright. Usa solo los datos ficticios de supabase/seed.sql.
+  bd-y-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - run: supabase start -x realtime,studio,imgproxy,vector,logflare,edge-runtime,supavisor,postgres-meta,mailpit
+      - run: npm ci
+      - run: npm run test:db
+      - name: Variables del Supabase local
+        run: |
+          supabase status -o env | grep -E '^(API_URL|ANON_KEY)=' | sed 's/"//g' > estado.env
+          . ./estado.env
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> .env.local
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> .env.local
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright
+          path: test-results
+          retention-days: 7

@@ -7,7 +7,7 @@
 -- Descuento por falta en semana fija = sueldo semanal ÷ días pactados.
 -- Con 6 días y 1 de descanso es el salario diario (semanal ÷ 7) más la parte
 -- proporcional del descanso (1/6 del salario diario): LFT art. 69 y 72.
--- Celia: $2,100 ÷ 6 = $350 = $300 del día + $50 del descanso.
+-- Ejemplo: $2,184 ÷ 6 = $364 = $312 del día + $52 del descanso.
 
 alter type tipo_concepto add value if not exists 'falta';
 

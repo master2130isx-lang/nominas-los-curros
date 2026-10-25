@@ -18,7 +18,11 @@ export function CancelarRecibo({ reciboId }: { reciboId: string }) {
         <label htmlFor="motivo">Motivo</label>
         <input id="motivo" name="motivo" type="text" placeholder="Por ejemplo: se capturaron mal los días" required />
       </div>
-      {estado.error && <p className="alerta">{estado.error}</p>}
+      {estado.error && (
+        <p className="alerta aparece" role="alert">
+          {estado.error}
+        </p>
+      )}
       <div>
         <button type="submit" className="boton peligro" disabled={enviando}>
           Cancelar recibo

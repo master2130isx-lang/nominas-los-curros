@@ -289,7 +289,11 @@ export function FormularioRecibo({
 
         {calculo.total < 0 && <p className="alerta">Los descuentos son mayores que el pago.</p>}
         {extraIncompleto && <p className="alerta aviso">Cada extra o descuento necesita decir por qué.</p>}
-        {estado.error && <p className="alerta">{estado.error}</p>}
+        {estado.error && (
+          <p className="alerta aparece" role="alert">
+            {estado.error}
+          </p>
+        )}
 
         <div className="acciones">
           <button type="submit" className="boton primario" disabled={!listo || enviando}>

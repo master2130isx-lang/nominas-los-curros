@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { dinero } from "@/lib/formato";
 import { textoDiaPago, textoDias } from "@/lib/programa";
 import { requerirSesion } from "@/lib/sesion";
@@ -26,7 +27,11 @@ export default async function Trabajadores() {
       </div>
       <div className="caja tabla-scroll">
         {trabajadores.length === 0 ? (
-          <p className="vacio">Todavía no hay trabajadores.</p>
+          <EstadoVacio titulo="Todavía no hay trabajadores">
+            <Link className="boton chico" href="/trabajadores/nuevo">
+              Agregar el primero
+            </Link>
+          </EstadoVacio>
         ) : (
           <table className="tabla">
             <thead>
@@ -42,7 +47,7 @@ export default async function Trabajadores() {
             <tbody>
               {trabajadores.map((t) => (
                 <tr key={t.id} style={t.activo ? undefined : { opacity: 0.6 }}>
-                  <td>
+                  <td className="principal">
                     <Link href={`/trabajadores/${t.id}`}>
                       <strong>{t.nombre}</strong>
                     </Link>
@@ -51,16 +56,18 @@ export default async function Trabajadores() {
                       {t.activo ? "" : " · dado de baja"}
                     </span>
                   </td>
-                  <td>{TIPOS_TRABAJADOR[t.tipo]}</td>
-                  <td>{FORMAS_PAGO[t.forma_pago]}</td>
-                  <td className="num">
-                    {dinero(Number(t.tarifa))}
-                    {Number(t.pasaje) > 0 && <span className="secundario">+ {dinero(Number(t.pasaje))} pasaje</span>}
+                  <td data-etiqueta="Tipo">{TIPOS_TRABAJADOR[t.tipo]}</td>
+                  <td data-etiqueta="Forma de pago">{FORMAS_PAGO[t.forma_pago]}</td>
+                  <td className="num" data-etiqueta="Tarifa">
+                    <span>
+                      {dinero(Number(t.tarifa))}
+                      {Number(t.pasaje) > 0 && <span className="secundario">+ {dinero(Number(t.pasaje))} pasaje</span>}
+                    </span>
                   </td>
-                  <td>{textoDiaPago(t)}</td>
-                  <td>
+                  <td data-etiqueta="Día de pago">{textoDiaPago(t)}</td>
+                  <td data-etiqueta="Días que trabaja">
                     {textoDias(t.dias_trabajo)}
-                    {t.horario && <span className="secundario">{t.horario}</span>}
+                    {t.horario && <span className="secundario"> {t.horario}</span>}
                   </td>
                 </tr>
               ))}

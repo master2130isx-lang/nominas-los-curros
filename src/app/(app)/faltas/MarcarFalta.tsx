@@ -1,54 +1,89 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
-import { TIPOS_FALTA, type TipoFalta } from "@/lib/tipos";
-import { anotarFalta, type EstadoFalta } from "./acciones";
+import { lazy, Suspense, useRef, useState } from "react";
+import { Panel } from "@/componentes/Panel";
+import { fechaConDia } from "@/lib/formato";
+import type { TipoFalta } from "@/lib/tipos";
 
-/** Botón "Marcar falta" que se abre en un formulario corto, para un trabajador y un día. */
-export function MarcarFalta({ trabajadorId, nombre, fecha }: { trabajadorId: string; nombre: string; fecha: string }) {
-  const [estado, accion, enviando] = useActionState<EstadoFalta, FormData>(anotarFalta, { error: null, ok: false });
-  const detalles = useRef<HTMLDetailsElement>(null);
-  useEffect(() => {
-    if (estado.ok && detalles.current) detalles.current.open = false;
-  }, [estado]);
-  const id = `${trabajadorId}-${fecha}`;
+// El formulario se descarga al acercarse al botón (o al abrir), no con la página.
+const cargarFormulario = () => import("./FormularioPanel");
+const FormularioPanel = lazy(cargarFormulario);
+
+export interface FaltaEditable {
+  id: string;
+  tipo: TipoFalta;
+  fraccion: number;
+  nota: string | null;
+}
+
+interface Props {
+  trabajadorId: string;
+  nombre: string;
+  fecha: string;
+  /** Solo a los de semana fija se les muestra cuánto se descuenta. */
+  semanaFija: boolean;
+  /** Si ya hay falta (sin recibo), el panel la edita o la quita. */
+  falta?: FaltaEditable;
+  /** Contenido del botón que abre el panel; por defecto "Marcar falta" o "Corregir". */
+  children?: React.ReactNode;
+  className?: string;
+  /** Nombre accesible; por defecto dice qué hace, a quién y qué día. */
+  etiqueta?: string;
+  /** Avisa al terminar (para animar la celda que cambió). */
+  alGuardar?: () => void;
+}
+
+/** Botón que abre el panel para marcar, corregir o quitar la falta de un trabajador en un día. */
+export function MarcarFalta({ trabajadorId, nombre, fecha, semanaFija, falta, children, className, etiqueta, alGuardar }: Props) {
+  const [abierto, setAbierto] = useState(false);
+  const boton = useRef<HTMLButtonElement>(null);
   return (
-    <details className="marcar-falta" ref={detalles}>
-      <summary className="boton chico">Marcar falta</summary>
-      <form action={accion} className="formulario">
-        <input type="hidden" name="trabajador_id" value={trabajadorId} />
-        <input type="hidden" name="fecha" value={fecha} />
-        <fieldset className="campo">
-          <legend>¿Qué tipo de falta de {nombre}?</legend>
-          {(Object.keys(TIPOS_FALTA) as TipoFalta[]).map((t, i) => (
-            <label key={t} className="opcion">
-              <input type="radio" name="tipo" value={t} defaultChecked={i === 0} required />
-              <span>
-                <strong>{TIPOS_FALTA[t].nombre}</strong>
-                <span className="secundario">
-                  {TIPOS_FALTA[t].ayuda}. {TIPOS_FALTA[t].descuento}.
-                </span>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-        <label className="casilla">
-          <input type="checkbox" name="media" />
-          Solo medio día (llegó tarde o se fue a medio turno)
-        </label>
-        <div className="campo">
-          <label htmlFor={`nota-${id}`}>
-            Motivo <span className="ayuda">· opcional, sale en el recibo</span>
-          </label>
-          <input id={`nota-${id}`} name="nota" type="text" maxLength={120} />
-        </div>
-        {estado.error && <p className="alerta">{estado.error}</p>}
-        <div>
-          <button type="submit" className="boton primario chico" disabled={enviando}>
-            {enviando ? "Anotando…" : "Anotar falta"}
-          </button>
-        </div>
-      </form>
-    </details>
+    <>
+      <button
+        ref={boton}
+        type="button"
+        className={className ?? "boton chico"}
+        aria-haspopup="dialog"
+        aria-label={
+          etiqueta ??
+          (falta
+            ? `Corregir o quitar la falta de ${nombre} del ${fechaConDia(fecha)}`
+            : `Marcar falta de ${nombre} el ${fechaConDia(fecha)}`)
+        }
+        onClick={() => setAbierto(true)}
+        onPointerEnter={cargarFormulario}
+        onFocus={cargarFormulario}
+      >
+        {children ?? (falta ? "Corregir" : "Marcar falta")}
+      </button>
+      <Panel
+        abierto={abierto}
+        alCerrar={() => setAbierto(false)}
+        retorno={boton}
+        titulo={falta ? `Corregir la falta de ${nombre}` : `¿Qué tipo de falta de ${nombre}?`}
+        descripcion={fechaConDia(fecha)}
+      >
+        <Suspense
+          fallback={
+            <div className="panel-cuerpo" aria-busy="true">
+              <p className="ayuda">Cargando…</p>
+            </div>
+          }
+        >
+          <FormularioPanel
+          trabajadorId={trabajadorId}
+          nombre={nombre}
+          fecha={fecha}
+          semanaFija={semanaFija}
+          falta={falta}
+          alTerminar={() => {
+            setAbierto(false);
+            alGuardar?.();
+          }}
+          alCancelar={() => setAbierto(false)}
+          />
+        </Suspense>
+      </Panel>
+    </>
   );
 }

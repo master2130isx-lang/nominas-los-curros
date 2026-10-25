@@ -15,7 +15,7 @@ export function diaIso(fecha: string): number {
   return dow === 0 ? 7 : dow;
 }
 
-export function trabajaEse(t: Programa, fecha: string): boolean {
+export function trabajaEse(t: Pick<Trabajador, "dias_trabajo">, fecha: string): boolean {
   return t.dias_trabajo.includes(diaIso(fecha));
 }
 
@@ -116,25 +116,59 @@ export function faltasSinAviso30(faltas: FaltaDia[], fecha: string): Map<string,
   return cuenta;
 }
 
+/** Cuántos días atrás revisa "Pendientes de días anteriores". */
+export const DIAS_PENDIENTES = 14;
+
 /**
  * Días anteriores (hasta `dias` atrás) en que le tocaba cobrar y no tiene recibo
- * ni falta completa. No cuenta días antes de `alta` (cuando se dio de alta en la plataforma).
+ * ni falta completa. Incluye los días de antes de que se diera de alta en la
+ * plataforma (para ponerse al corriente); solo se salta los de antes de `desde`,
+ * la fecha en que empezó a trabajar, si se conoce.
  */
-export function pendientesAnteriores<T extends Programa & { id: string; alta?: string }>(
+export function pendientesAnteriores<T extends Programa & { id: string; desde?: string | null }>(
   trabajadores: T[],
   recibos: PeriodoRecibo[],
   fecha: string,
   faltas: FaltaDia[] = [],
-  dias = 7,
+  dias = DIAS_PENDIENTES,
 ): { trabajador: T; fecha: string }[] {
   const lista: { trabajador: T; fecha: string }[] = [];
   for (let i = 1; i <= dias; i++) {
     const dia = sumarDias(fecha, -i);
     for (const t of trabajadores) {
-      if (t.alta && dia < t.alta) continue;
+      if (t.desde && dia < t.desde) continue;
       if (faltoCompleto(t, faltas, dia)) continue;
       if (leTocaCobrar(t, dia) && !reciboQueCubre(recibos, t.id, dia)) lista.push({ trabajador: t, fecha: dia });
     }
   }
   return lista;
+}
+
+/** Pendientes agrupados por trabajador (del día más reciente al más viejo). */
+export function agruparPendientes<T extends { id: string }>(
+  pendientes: { trabajador: T; fecha: string }[],
+): { trabajador: T; fechas: string[] }[] {
+  const grupos = new Map<string, { trabajador: T; fechas: string[] }>();
+  for (const p of pendientes) {
+    const g = grupos.get(p.trabajador.id) ?? { trabajador: p.trabajador, fechas: [] };
+    g.fechas.push(p.fecha);
+    grupos.set(p.trabajador.id, g);
+  }
+  return [...grupos.values()];
+}
+
+/** Iniciales para el avatar: "Ana Lucía Prueba" → "AP". */
+export function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return "?";
+  const primera = partes[0].charAt(0);
+  const ultima = partes.length > 1 ? partes[partes.length - 1].charAt(0) : partes[0].charAt(1);
+  return (primera + ultima).toUpperCase();
+}
+
+/** Tono estable del avatar (0-3) según el nombre. */
+export function tonoAvatar(nombre: string): number {
+  let h = 0;
+  for (const c of nombre) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h % 4;
 }

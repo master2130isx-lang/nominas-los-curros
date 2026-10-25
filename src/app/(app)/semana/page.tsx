@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { EstadoRecibo } from "@/componentes/EstadoRecibo";
+import { EstadoVacio } from "@/componentes/EstadoVacio";
+import { IconoDerecha, IconoIzquierda } from "@/componentes/Iconos";
 import { esFecha, hoy, semanaDe, sumarDias } from "@/lib/fechas";
 import { cantidad, dinero, fechaConDia, folio } from "@/lib/formato";
 import { requerirSesion } from "@/lib/sesion";
@@ -17,10 +19,14 @@ export default async function Semana({
   const { inicio, fin } = semanaDe(esFecha(semana) ? semana : hoy());
 
   const [{ data: trabajadores }, { data: recibos }] = await Promise.all([
-    supabase.from("trabajadores").select("*").order("nombre").returns<Trabajador[]>(),
+    supabase
+      .from("trabajadores")
+      .select("id, nombre, tipo, actividad, forma_pago, tarifa, pago_cuando, pago_dia_semana, dias_trabajo, activo")
+      .order("nombre")
+      .returns<Trabajador[]>(),
     supabase
       .from("recibos")
-      .select("*")
+      .select("id, folio, trabajador_id, forma_pago, cantidad, total, estado")
       .gte("fecha_pago", inicio)
       .lte("fecha_pago", fin)
       .neq("estado", "cancelado")
@@ -44,42 +50,40 @@ export default async function Semana({
     <>
       <div className="encabezado">
         <div>
-          <h1>Pagos de la semana</h1>
-          <div className="sub">
+          <span className="antetitulo">
             {fechaConDia(inicio)} al {fechaConDia(fin)} de {fin.slice(0, 4)}
-          </div>
+          </span>
+          <h1>Pagos de la semana</h1>
         </div>
-        <div className="acciones">
-          <Link className="boton chico" href={`/semana?semana=${sumarDias(inicio, -7)}`} aria-label="Semana anterior">
-            ← Anterior
+        <nav className="segmentado" aria-label="Cambiar de semana">
+          <Link href={`/semana?semana=${sumarDias(inicio, -7)}`} aria-label="Semana anterior">
+            <IconoIzquierda /> <span>Anterior</span>
           </Link>
-          <Link className="boton chico" href="/semana">
+          <Link href="/semana" aria-current={inicio === semanaDe(hoy()).inicio ? "true" : undefined}>
             Esta semana
           </Link>
-          <Link className="boton chico" href={`/semana?semana=${sumarDias(inicio, 7)}`} aria-label="Semana siguiente">
-            Siguiente →
+          <Link href={`/semana?semana=${sumarDias(inicio, 7)}`} aria-label="Semana siguiente">
+            <span>Siguiente</span> <IconoDerecha />
           </Link>
-        </div>
+        </nav>
       </div>
 
       <div className="tarjetas">
-        <div className="tarjeta">
+        <div className="tarjeta ok">
           <span className="etiqueta">Pagado en la semana</span>
           <span className="valor">{dinero(totalPagado)}</span>
           <span className="nota">{(recibos ?? []).length} recibos</span>
         </div>
-        <div className="tarjeta">
+        <div className="tarjeta acento">
           <span className="etiqueta">Trabajadores pagados</span>
           <span className="valor">
             {pagados} de {filas.length}
           </span>
           <span className="nota">{filas.length - pagados} pendientes</span>
         </div>
-        <div className="tarjeta">
+        <div className={`tarjeta${sinFirma ? " alarma" : ""}`}>
           <span className="etiqueta">Recibos sin foto firmada</span>
-          <span className="valor" style={{ color: sinFirma ? "var(--error-texto)" : undefined }}>
-            {sinFirma}
-          </span>
+          <span className="valor">{sinFirma}</span>
           <span className="nota">Sube la foto del recibo firmado</span>
         </div>
       </div>
@@ -95,19 +99,23 @@ export default async function Semana({
 
       <div className="caja tabla-scroll">
         {filas.length === 0 ? (
-          <p className="vacio">
-            Todavía no hay trabajadores. <Link href="/trabajadores/nuevo">Agrega el primero</Link>.
-          </p>
+          <EstadoVacio titulo="Todavía no hay trabajadores">
+            <Link className="boton chico" href="/trabajadores/nuevo">
+              Agregar el primero
+            </Link>
+          </EstadoVacio>
         ) : (
           <table className="tabla">
             <thead>
               <tr>
-                <th>Trabajador</th>
-                <th>Lo trabajado</th>
-                <th>Día de pago</th>
-                <th className="num">Total</th>
-                <th>Estado</th>
-                <th>
+                <th scope="col">Trabajador</th>
+                <th scope="col">Lo trabajado</th>
+                <th scope="col">Día de pago</th>
+                <th scope="col" className="num">
+                  Total
+                </th>
+                <th scope="col">Estado</th>
+                <th scope="col">
                   <span className="sr-only">Acciones</span>
                 </th>
               </tr>
@@ -129,24 +137,26 @@ export default async function Semana({
                       </tr>
                     )}
                     <tr>
-                      <td>
+                      <td className="principal con-lado">
                         <strong>{t.nombre}</strong>
                         <span className="secundario">
                           {TIPOS_TRABAJADOR[t.tipo]}
                           {t.actividad ? ` · ${t.actividad}` : ""}
                         </span>
                       </td>
-                      <td>
+                      <td data-etiqueta="Lo trabajado">
                         {suyos.length === 0
                           ? `${FORMAS_PAGO[t.forma_pago]} · ${dinero(Number(t.tarifa))}`
                           : suyos.map((r) => `${cantidad(Number(r.cantidad))} ${UNIDADES[r.forma_pago]}`).join(" + ")}
                       </td>
-                      <td>{textoDiaPago(t)}</td>
-                      <td className="num">{suyos.length ? dinero(total) : "—"}</td>
-                      <td>{estado ? <EstadoRecibo estado={estado} /> : <span className="pastilla aviso">Pendiente</span>}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
+                      <td data-etiqueta="Día de pago">{textoDiaPago(t)}</td>
+                      <td className="num lado">{suyos.length ? dinero(total) : "—"}</td>
+                      <td data-etiqueta="Estado">
+                        {estado ? <EstadoRecibo estado={estado} /> : <span className="pastilla aviso">Pendiente</span>}
+                      </td>
+                      <td className="acciones-celda">
                         {suyos.map((r) => (
-                          <Link key={r.id} href={`/recibos/${r.id}`} className="boton chico" style={{ marginRight: 6 }}>
+                          <Link key={r.id} href={`/recibos/${r.id}`} className="boton chico">
                             Folio {folio(r.folio)}
                           </Link>
                         ))}

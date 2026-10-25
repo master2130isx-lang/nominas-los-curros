@@ -2,13 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { traducirError } from "@/lib/errores";
 import { esFecha, hoy } from "@/lib/fechas";
 import { horasEntre, textoHorario } from "@/lib/horario";
 import { requerirSesion } from "@/lib/sesion";
 import { FORMAS_PAGO, TIPOS_TRABAJADOR, type PagoCuando } from "@/lib/tipos";
+import { esUuid } from "@/lib/validacion";
+import type { EstadoFormulario } from "../recibos/acciones";
 
 const PAGO_CUANDO: PagoCuando[] = ["dia_semana", "cada_dia", "al_terminar"];
-import type { EstadoFormulario } from "../recibos/acciones";
 
 const texto = (f: FormData, k: string) => {
   const v = String(f.get(k) ?? "").trim();
@@ -16,8 +18,9 @@ const texto = (f: FormData, k: string) => {
 };
 
 export async function guardarTrabajador(_previo: EstadoFormulario, form: FormData): Promise<EstadoFormulario> {
-  const { supabase } = await requerirSesion();
+  const { supabase, perfil } = await requerirSesion();
   const id = texto(form, "id");
+  if (id && !esUuid(id)) return { error: "El trabajador no es válido." };
   const nombre = texto(form, "nombre");
   const tipo = String(form.get("tipo"));
   const formaPago = String(form.get("forma_pago"));
@@ -71,10 +74,22 @@ export async function guardarTrabajador(_previo: EstadoFormulario, form: FormDat
     ...(id ? { activo: form.get("activo") === "on" } : {}),
   };
 
+  // La tarifa y la baja solo las cambia el administrador (la base de datos también lo revisa).
+  if (id && perfil.rol !== "admin") {
+    const { data: actual, error: errorActual } = await supabase
+      .from("trabajadores")
+      .select("tarifa, activo")
+      .eq("id", id)
+      .maybeSingle<{ tarifa: number; activo: boolean }>();
+    if (errorActual || !actual) return { error: traducirError(errorActual, "No se encontró al trabajador.") };
+    if (Number(actual.tarifa) !== tarifa) return { error: "Solo el administrador puede cambiar la tarifa." };
+    if (actual.activo !== fila.activo) return { error: "Solo el administrador puede dar de baja o reactivar a un trabajador." };
+  }
+
   const { error } = id
     ? await supabase.from("trabajadores").update(fila).eq("id", id)
     : await supabase.from("trabajadores").insert(fila);
-  if (error) return { error: error.message };
+  if (error) return { error: traducirError(error, "No se pudo guardar el trabajador.") };
 
   revalidatePath("/");
   revalidatePath("/semana");
@@ -85,12 +100,12 @@ export async function guardarTrabajador(_previo: EstadoFormulario, form: FormDat
 /** Guarda la foto de la constancia de condiciones de trabajo ya firmada. */
 export async function guardarConstancia(id: string, ruta: string): Promise<{ error: string | null }> {
   const { supabase } = await requerirSesion();
-  if (!ruta.startsWith(`constancias/${id}/`)) return { error: "Foto no válida." };
+  if (!esUuid(id) || !ruta.startsWith(`constancias/${id}/`)) return { error: "Foto no válida." };
   const { error } = await supabase
     .from("trabajadores")
     .update({ constancia_foto_path: ruta, constancia_firmada_en: hoy() })
     .eq("id", id);
-  if (error) return { error: error.message };
+  if (error) return { error: traducirError(error, "No se pudo guardar la constancia.") };
   revalidatePath(`/trabajadores/${id}`);
   revalidatePath("/trabajadores");
   return { error: null };
