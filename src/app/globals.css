@@ -806,7 +806,7 @@ table.asistencia { width: 100%; border-collapse: separate; border-spacing: 0; ta
   display: grid;
   place-items: center;
   padding: var(--e-4);
-  background: linear-gradient(180deg, var(--acento-suave), var(--fondo) 55%);
+  background: linear-gradient(160deg, var(--acento-suave) 0%, #dce6f5 100%);
 }
 .entrada > .caja { width: 100%; max-width: 400px; padding: var(--e-6); box-shadow: var(--sombra-2); }
 .marca-entrada { display: flex; align-items: center; gap: var(--e-3); }
@@ -832,3 +832,27 @@ table.asistencia { width: 100%; border-collapse: separate; border-spacing: 0; ta
   .estado .corto { display: inline; }
   .celda.falta .dia-movil, .celda.falta .dia-movil > span, .celda.pagado .dia-movil, .celda.pagado .dia-movil > span { color: inherit; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Firma visual: el recibo de papel. Cifras y folios con la misma       */
+/* tipografía monoespaciada del recibo impreso, y el borde perforado     */
+/* del talonario en el panel y en la entrada.                            */
+/* ------------------------------------------------------------------ */
+:root { --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.tarjeta .valor, .tabla .num, .celda.pagado .estado:last-child { font-family: var(--mono); letter-spacing: -0.03em; }
+.tarjeta .valor { font-weight: 600; }
+/* Muescas semicirculares en el borde, como el talonario de recibos. */
+dialog.panel, .entrada > .caja {
+  -webkit-mask: radial-gradient(circle at 8px 100%, transparent 5px, #000 5.5px) 0 0 / 16px 100% repeat-x;
+  mask: radial-gradient(circle at 8px 100%, transparent 5px, #000 5.5px) 0 0 / 16px 100% repeat-x;
+}
+dialog.panel { border-radius: var(--r-panel) var(--r-panel) 2px 2px; }
+.entrada > .caja { border-radius: var(--r-caja) var(--r-caja) 2px 2px; padding-bottom: calc(var(--e-6) + 4px); }
+@media (max-width: 700px) {
+  dialog.panel {
+    -webkit-mask: radial-gradient(circle at 8px 0, transparent 5px, #000 5.5px) 0 0 / 16px 100% repeat-x;
+    mask: radial-gradient(circle at 8px 0, transparent 5px, #000 5.5px) 0 0 / 16px 100% repeat-x;
+    border-radius: 2px 2px 0 0;
+  }
+}
+.antetitulo::before { content: ""; display: inline-block; width: 18px; height: 2px; margin-right: 8px; vertical-align: middle; background: var(--acento); border-radius: 1px; }

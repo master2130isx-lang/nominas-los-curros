@@ -174,8 +174,9 @@ export default async function Asistencia({ searchParams }: { searchParams: Promi
                     if (d > hoyMx) {
                       return (
                         <td key={d}>
-                          <span className="celda futuro" aria-label={`${fechaConDia(d)}: todavía no llega`}>
+                          <span className="celda futuro">
                             {encabezadoMovil}
+                            <span className="sr-only">{fechaConDia(d)}: todavía no llega</span>
                           </span>
                         </td>
                       );
