@@ -66,14 +66,16 @@ export function LoteDelDia({ filas, fecha }: { filas: FilaLote[]; fecha: string 
         <table className="tabla">
           <thead>
             <tr>
-              <th>
+              <th scope="col">
                 <span className="sr-only">Incluir</span>
               </th>
-              <th>Trabajador</th>
-              <th>Periodo</th>
-              <th>Cantidad</th>
-              <th className="num">Total</th>
-              <th>
+              <th scope="col">Trabajador</th>
+              <th scope="col">Periodo</th>
+              <th scope="col">Cantidad</th>
+              <th scope="col" className="num">
+                Total
+              </th>
+              <th scope="col">
                 <span className="sr-only">Otras opciones</span>
               </th>
             </tr>
@@ -82,23 +84,22 @@ export function LoteDelDia({ filas, fecha }: { filas: FilaLote[]; fecha: string 
             {filas.map((f) => {
               const t = total(f);
               const id = `c-${f.trabajadorId}`;
+              const incluido = marcados.includes(f.trabajadorId);
               return (
-                <tr key={f.trabajadorId}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      aria-label={`Incluir a ${f.nombre}`}
-                      checked={marcados.includes(f.trabajadorId)}
-                      onChange={() =>
-                        setMarcados(
-                          marcados.includes(f.trabajadorId)
-                            ? marcados.filter((x) => x !== f.trabajadorId)
-                            : [...marcados, f.trabajadorId],
-                        )
-                      }
-                    />
+                <tr key={f.trabajadorId} className={incluido ? undefined : "apagada"}>
+                  <td className="lado">
+                    <label className="marcar">
+                      <input
+                        type="checkbox"
+                        aria-label={`Incluir a ${f.nombre}`}
+                        checked={incluido}
+                        onChange={() =>
+                          setMarcados(incluido ? marcados.filter((x) => x !== f.trabajadorId) : [...marcados, f.trabajadorId])
+                        }
+                      />
+                    </label>
                   </td>
-                  <td>
+                  <td className="principal con-lado">
                     <strong>{f.nombre}</strong>
                     <span className="secundario">
                       {FORMAS_PAGO[f.formaPago]} · {dinero(f.tarifa)}
@@ -116,25 +117,29 @@ export function LoteDelDia({ filas, fecha }: { filas: FilaLote[]; fecha: string 
                       </span>
                     )}
                   </td>
-                  <td>{rango(f.periodoInicio, f.periodoFin)}</td>
-                  <td>
-                    <label htmlFor={id} className="sr-only">
-                      Cantidad de {f.nombre}
-                    </label>
-                    <input
-                      id={id}
-                      type="number"
-                      inputMode="decimal"
-                      min="0.5"
-                      step="0.5"
-                      value={cantidades[f.trabajadorId]}
-                      placeholder={f.formaPago === "hora" ? "Horas" : ""}
-                      onChange={(e) => setCantidades({ ...cantidades, [f.trabajadorId]: e.target.value })}
-                    />{" "}
-                    <span style={{ fontSize: 13, color: "var(--tenue)" }}>{UNIDADES[f.formaPago]}</span>
+                  <td data-etiqueta="Periodo">{rango(f.periodoInicio, f.periodoFin)}</td>
+                  <td data-etiqueta="Cantidad">
+                    <span className="acciones" style={{ gap: 6, flexWrap: "nowrap" }}>
+                      <label htmlFor={id} className="sr-only">
+                        Cantidad de {f.nombre}
+                      </label>
+                      <input
+                        id={id}
+                        type="number"
+                        inputMode="decimal"
+                        min="0.5"
+                        step="0.5"
+                        value={cantidades[f.trabajadorId]}
+                        placeholder={f.formaPago === "hora" ? "Horas" : ""}
+                        onChange={(e) => setCantidades({ ...cantidades, [f.trabajadorId]: e.target.value })}
+                      />
+                      <span style={{ fontSize: 13, color: "var(--tenue)" }}>{UNIDADES[f.formaPago]}</span>
+                    </span>
                   </td>
-                  <td className="num">{t === null ? "—" : dinero(t)}</td>
-                  <td>
+                  <td className="num" data-etiqueta="Total">
+                    {t === null ? "—" : dinero(t)}
+                  </td>
+                  <td className="acciones-celda">
                     <Link className="boton chico" href={`/recibos/nuevo?trabajador=${f.trabajadorId}&fecha=${fecha}`}>
                       Con extras o abono
                     </Link>
@@ -146,13 +151,13 @@ export function LoteDelDia({ filas, fecha }: { filas: FilaLote[]; fecha: string 
         </table>
       </div>
       {estado.error && (
-        <p className="alerta">
+        <p className="alerta aparece" role="alert">
           {estado.creados > 0 ? `Se hicieron ${estado.creados} recibos, pero uno falló: ` : ""}
           {estado.error}
         </p>
       )}
       <div className="acciones">
-        <button type="submit" className="boton primario" disabled={!listos.length || enviando}>
+        <button type="submit" className="boton primario" disabled={!listos.length || enviando} aria-busy={enviando}>
           {enviando
             ? "Haciendo recibos…"
             : `Hacer ${listos.length} ${listos.length === 1 ? "recibo" : "recibos"} e imprimir · ${dinero(
