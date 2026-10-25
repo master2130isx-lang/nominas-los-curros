@@ -78,6 +78,17 @@ describe("Faltas en días ya pagados", () => {
   });
 });
 
+describe("Sin filtraciones a usuarios inactivos", () => {
+  it("un inactivo que intenta anotar en un día pagado recibe el rechazo de RLS, no el folio", async () => {
+    await bd.como(ENCARGADA);
+    await crearRecibo(ROSA, "2026-09-06", "2026-09-12");
+    await bd.como(INACTIVO);
+    const e = await error(bd.query("insert into faltas (trabajador_id, fecha, tipo) values ($1, '2026-09-10', 'sin_aviso')", [ROSA]));
+    expect(e.code).toBe("42501");
+    expect(e.message).not.toMatch(/folio/);
+  });
+});
+
 describe("Editar una falta pendiente", () => {
   it("cambia de sin aviso a sin goce y el siguiente recibo descuenta lo nuevo", async () => {
     await bd.como(ENCARGADA);

@@ -16,6 +16,10 @@ language plpgsql security definer set search_path = public as $$
 declare
   v_folio int;
 begin
+  -- A quien no tiene perfil activo no se le dice nada: RLS rechaza la fila después.
+  if not es_usuario_activo() then
+    return new;
+  end if;
   select folio into v_folio
     from recibos
    where trabajador_id = new.trabajador_id
