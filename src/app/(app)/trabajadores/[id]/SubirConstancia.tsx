@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { traducirErrorSubida } from "@/lib/errores";
 import { crearClienteNavegador } from "@/lib/supabase/cliente";
 import { guardarConstancia } from "../acciones";
 
@@ -22,7 +23,7 @@ export function SubirConstancia({ trabajadorId }: { trabajadorId: string }) {
       .from("recibos-firmados")
       .upload(ruta, archivo, { contentType: archivo.type || undefined });
     if (errorSubida) {
-      setError(`No se pudo subir la foto: ${errorSubida.message}`);
+      setError(traducirErrorSubida(errorSubida.message));
       setSubiendo(false);
       return;
     }

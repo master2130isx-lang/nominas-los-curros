@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { traducirError } from "@/lib/errores";
 import { esFecha } from "@/lib/fechas";
 import { requerirSesion } from "@/lib/sesion";
+import { esUuid } from "@/lib/validacion";
 
 export interface EstadoFormulario {
   error: string | null;
@@ -29,6 +31,8 @@ export async function crearRecibo(_previo: EstadoFormulario, form: FormData): Pr
     return { error: "No se pudieron leer los datos del formulario." };
   }
   if (!datos.trabajadorId) return { error: "Escoge al trabajador." };
+  if (!esUuid(datos.trabajadorId)) return { error: "El trabajador no es válido. Vuelve a escogerlo." };
+  if (!Array.isArray(datos.extras)) return { error: "No se pudieron leer los extras del recibo." };
   if (![datos.periodoInicio, datos.periodoFin, datos.fechaPago].every(esFecha)) {
     return { error: "Revisa las fechas del periodo y del pago." };
   }
@@ -48,7 +52,7 @@ export async function crearRecibo(_previo: EstadoFormulario, form: FormData): Pr
       p_nota: datos.nota,
     })
     .single<{ id: string }>();
-  if (error || !data) return { error: error?.message ?? "No se pudo guardar el recibo." };
+  if (error || !data) return { error: traducirError(error, "No se pudo guardar el recibo.") };
 
   revalidatePath("/");
   redirect(`/recibos/${data.id}?nuevo=1`);
@@ -59,9 +63,10 @@ export async function cancelarRecibo(_previo: EstadoFormulario, form: FormData):
   if (perfil.rol !== "admin") return { error: "Solo el administrador puede cancelar recibos." };
   const id = String(form.get("id"));
   const motivo = String(form.get("motivo") ?? "").trim();
+  if (!esUuid(id)) return { error: "El recibo no es válido." };
   if (!motivo) return { error: "Escribe por qué se cancela." };
   const { error } = await supabase.rpc("cancelar_recibo", { p_recibo_id: id, p_motivo: motivo });
-  if (error) return { error: error.message };
+  if (error) return { error: traducirError(error, "No se pudo cancelar el recibo.") };
   revalidatePath("/");
   revalidatePath(`/recibos/${id}`);
   return { error: null };
@@ -69,8 +74,9 @@ export async function cancelarRecibo(_previo: EstadoFormulario, form: FormData):
 
 export async function marcarFirmado(id: string, ruta: string): Promise<EstadoFormulario> {
   const { supabase } = await requerirSesion();
+  if (!esUuid(id)) return { error: "El recibo no es válido." };
   const { error } = await supabase.rpc("marcar_firmado", { p_recibo_id: id, p_foto_path: ruta });
-  if (error) return { error: error.message };
+  if (error) return { error: traducirError(error, "No se pudo marcar el recibo como firmado.") };
   revalidatePath("/");
   revalidatePath(`/recibos/${id}`);
   return { error: null };
@@ -78,7 +84,8 @@ export async function marcarFirmado(id: string, ruta: string): Promise<EstadoFor
 
 export async function registrarImpresion(ids: string[]): Promise<void> {
   const { supabase } = await requerirSesion();
-  await supabase.rpc("registrar_impresion", { p_recibos: ids });
+  const validos = ids.filter(esUuid);
+  if (validos.length) await supabase.rpc("registrar_impresion", { p_recibos: validos });
 }
 
 export interface EstadoLote {
@@ -107,7 +114,7 @@ export async function crearLote(_previo: EstadoLote, form: FormData): Promise<Es
 
   const ids: string[] = [];
   for (const f of filas) {
-    if (![f.periodoInicio, f.periodoFin, f.fechaPago].every(esFecha) || !(f.cantidad > 0)) {
+    if (!esUuid(f.trabajadorId) || ![f.periodoInicio, f.periodoFin, f.fechaPago].every(esFecha) || !(f.cantidad > 0)) {
       return { error: "Revisa las cantidades.", creados: ids.length };
     }
     const { data, error } = await supabase
@@ -121,7 +128,7 @@ export async function crearLote(_previo: EstadoLote, form: FormData): Promise<Es
       .single<{ id: string }>();
     if (error || !data) {
       revalidatePath("/");
-      return { error: error?.message ?? "No se pudo guardar un recibo.", creados: ids.length };
+      return { error: traducirError(error, "No se pudo guardar un recibo."), creados: ids.length };
     }
     ids.push(data.id);
   }
