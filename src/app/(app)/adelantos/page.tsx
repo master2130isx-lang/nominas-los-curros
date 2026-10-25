@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { hoy } from "@/lib/fechas";
 import { dinero, fechaLarga, folio } from "@/lib/formato";
 import { requerirSesion } from "@/lib/sesion";
@@ -68,7 +69,7 @@ export default async function Adelantos({ searchParams }: { searchParams: Promis
 
       <div className="caja tabla-scroll">
         {lista.length === 0 ? (
-          <p className="vacio">{verPagados ? "No hay préstamos registrados." : "Nadie debe nada."}</p>
+          <EstadoVacio tono={verPagados ? undefined : "ok"} titulo={verPagados ? "No hay préstamos registrados" : "Nadie debe nada"} />
         ) : (
           <table className="tabla">
             <thead>
@@ -85,25 +86,33 @@ export default async function Adelantos({ searchParams }: { searchParams: Promis
                 const suyos = porPrestamo.get(a.id) ?? [];
                 return (
                   <tr key={a.id}>
-                    <td>
-                      {fechaLarga(a.fecha)}
-                      {a.descripcion && <span className="secundario">{a.descripcion}</span>}
+                    <td data-etiqueta="Fecha">
+                      <span>
+                        {fechaLarga(a.fecha)}
+                        {a.descripcion && <span className="secundario">{a.descripcion}</span>}
+                      </span>
                     </td>
-                    <td>{nombres.get(a.trabajador_id) ?? "—"}</td>
-                    <td className="num">{dinero(Number(a.monto))}</td>
-                    <td>
+                    <td className="principal" style={{ order: -1 }}>
+                      <strong>{nombres.get(a.trabajador_id) ?? "—"}</strong>
+                    </td>
+                    <td className="num" data-etiqueta="Prestado">
+                      {dinero(Number(a.monto))}
+                    </td>
+                    <td data-etiqueta="Abonos">
                       {suyos.length === 0 ? (
                         <span className="secundario">Sin abonos todavía</span>
                       ) : (
-                        suyos.map((ab) => (
+                        <span>
+                        {suyos.map((ab) => (
                           <span key={ab.id} className="secundario">
                             {dinero(Number(ab.monto))} el {ab.recibos ? fechaLarga(ab.recibos.fecha_pago) : "—"} ·{" "}
                             <Link href={`/recibos/${ab.recibo_id}`}>folio {ab.recibos ? folio(ab.recibos.folio) : ""}</Link>
                           </span>
-                        ))
+                        ))}
+                        </span>
                       )}
                     </td>
-                    <td className="num">
+                    <td className="num" data-etiqueta="Saldo">
                       {Number(a.saldo) > 0 ? (
                         <strong>{dinero(Number(a.saldo))}</strong>
                       ) : (
