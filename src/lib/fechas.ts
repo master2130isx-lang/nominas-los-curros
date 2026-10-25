@@ -31,3 +31,28 @@ export function esFecha(s: unknown): s is string {
   const f = new Date(Date.UTC(a, m - 1, d));
   return f.getUTCFullYear() === a && f.getUTCMonth() === m - 1 && f.getUTCDate() === d;
 }
+
+/** Día en que se empezó a usar la plataforma: nada anterior se muestra ni se captura. */
+export const FECHA_IMPLEMENTACION = "2026-10-24";
+
+/**
+ * Fecha de inicio vigente (solo en el servidor). La variable FECHA_INICIO permite
+ * moverla, por ejemplo en las pruebas; si no existe o no es válida, se usa
+ * FECHA_IMPLEMENTACION.
+ */
+export function fechaInicio(): string {
+  const f = typeof process !== "undefined" ? process.env.FECHA_INICIO : undefined;
+  return esFecha(f) ? f : FECHA_IMPLEMENTACION;
+}
+
+/** La fecha, pero nunca antes del inicio. */
+export function desdeInicio(fecha: string, inicio = fechaInicio()): string {
+  return fecha < inicio ? inicio : fecha;
+}
+
+/** Mensaje de error si la fecha es anterior al inicio de la plataforma; null si está bien. */
+export function errorAntesDeInicio(fecha: string, inicio = fechaInicio()): string | null {
+  if (fecha >= inicio) return null;
+  const [a, m, d] = inicio.split("-").map(Number);
+  return `La plataforma empezó el ${d}/${String(m).padStart(2, "0")}/${a}; no se capturan días anteriores.`;
+}

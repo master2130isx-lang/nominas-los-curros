@@ -5,6 +5,7 @@ export type EstadoRecibo = "sin_firma" | "firmado" | "cancelado";
 export type PagoCuando = "dia_semana" | "cada_dia" | "al_terminar";
 export type TipoConcepto = "trabajo" | "pasaje" | "extra" | "adelanto" | "prestamo" | "otro" | "falta";
 export type TipoFalta = "sin_aviso" | "sin_goce" | "justificada";
+export type TipoContrato = "indeterminado" | "determinado" | "obra" | "temporada" | "prueba" | "capacitacion";
 
 export interface Perfil {
   id: string;
@@ -34,6 +35,17 @@ export interface Trabajador {
   horas_dia: number | null;
   constancia_foto_path: string | null;
   constancia_firmada_en: string | null;
+  fecha_nacimiento: string | null;
+  rfc: string | null;
+  nss: string | null;
+  domicilio: string | null;
+  contacto_emergencia: string | null;
+  telefono_emergencia: string | null;
+  tipo_contrato: TipoContrato | null;
+  /** Salario diario registrado (contrato o IMSS); lo cambia solo el administrador. */
+  salario_diario: number | null;
+  /** Se le da de comer sin costo. */
+  alimentacion: boolean;
   activo: boolean;
   creado_en: string;
 }
@@ -148,3 +160,20 @@ export const UNIDADES: Record<FormaPago, string> = {
   tarea: "tarea(s)",
   semana: "semana(s)",
 };
+
+export const TIPOS_CONTRATO: Record<TipoContrato, string> = {
+  indeterminado: "Por tiempo indeterminado",
+  determinado: "Por tiempo determinado",
+  obra: "Por obra determinada",
+  temporada: "Por temporada",
+  prueba: "Periodo de prueba",
+  capacitacion: "Capacitación inicial",
+};
+
+export interface DocumentoTrabajador {
+  id: string;
+  trabajador_id: string;
+  nombre: string;
+  ruta: string;
+  subido_en: string;
+}

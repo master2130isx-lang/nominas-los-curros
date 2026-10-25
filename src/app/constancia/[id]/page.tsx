@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DOMICILIO } from "@/componentes/ReciboHoja";
+import { NEGOCIO, NOTA_ALIMENTACION_MINIMO } from "@/lib/negocio";
 import { hoy } from "@/lib/fechas";
 import { dinero, fechaLarga } from "@/lib/formato";
-import { descuentoPorFalta, esSemanaCompleta, salarioDiario } from "@/lib/ley";
+import { compararConMinimo, descuentoPorFalta, esSemanaCompleta, salarioDiario } from "@/lib/ley";
 import { pesosConLetra } from "@/lib/letras";
 import { DIAS_SEMANA, textoDiaPago } from "@/lib/programa";
 import { requerirSesion } from "@/lib/sesion";
 import { FORMAS_PAGO, type Trabajador } from "@/lib/tipos";
 import { BotonImprimirSimple } from "./BotonImprimirSimple";
+import "@/app/recibo.css";
 
 
 function listaDias(dias: number[]): string {
@@ -27,12 +29,15 @@ function Constancia({ t, marca, fecha }: { t: Trabajador; marca: string; fecha: 
   const diario = salarioDiario(datos);
   const porFalta = descuentoPorFalta(datos);
   const reducida = horas !== null && horas < 8;
+  const minimo = compararConMinimo(datos);
 
   return (
     <article className="pagina-carta">
       <div className="cabeza">
         <div className="negocio">
-          <strong>Restaurante Los Curros</strong>
+          <strong>{NEGOCIO.nombre}</strong>
+          {NEGOCIO.rfc && <span>RFC {NEGOCIO.rfc}</span>}
+          {NEGOCIO.registroPatronal && <span>Registro patronal IMSS {NEGOCIO.registroPatronal}</span>}
           <span>{DOMICILIO}</span>
         </div>
         <div className="folio">
@@ -42,7 +47,7 @@ function Constancia({ t, marca, fecha }: { t: Trabajador; marca: string; fecha: 
       </div>
 
       <p>
-        En {DOMICILIO}, a {fechaLarga(fecha)}, el Restaurante Los Curros (en adelante, el patrón) y{" "}
+        En {DOMICILIO}, a {fechaLarga(fecha)}, {NEGOCIO.nombre} (en adelante, el patrón) y{" "}
         <b>{t.nombre}</b>
         {t.curp ? `, con CURP ${t.curp}` : ""} (en adelante, el trabajador), hacen constar por escrito las condiciones de
         trabajo que tienen acordadas, conforme a los artículos 24 y 25 de la Ley Federal del Trabajo:
@@ -91,6 +96,22 @@ function Constancia({ t, marca, fecha }: { t: Trabajador; marca: string; fecha: 
               </td>
             </tr>
           )}
+          <tr>
+            <th>Lugar de trabajo</th>
+            <td>
+              {NEGOCIO.nombre}, {DOMICILIO}
+            </td>
+          </tr>
+          <tr>
+            <th>Alimentación</th>
+            <td>
+              {t.alimentacion
+                ? `Se proporciona durante la jornada, sin costo para el trabajador (prestación en especie).${
+                    minimo && !minimo.arriba ? ` ${NOTA_ALIMENTACION_MINIMO}` : ""
+                  }`
+                : "No se proporciona"}
+            </td>
+          </tr>
           <tr>
             <th>Forma y día de pago</th>
             <td>En efectivo, contra recibo firmado · {textoDiaPago(datos).toLowerCase()}</td>

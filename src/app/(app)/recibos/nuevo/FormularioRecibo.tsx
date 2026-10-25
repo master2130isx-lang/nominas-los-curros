@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { ReciboHoja } from "@/componentes/ReciboHoja";
+import { lazy, Suspense, useActionState, useEffect, useMemo, useState } from "react";
 import { calcularRecibo, type ExtraCaptura } from "@/lib/calculo";
 import { TIPOS_FALTA, type Falta } from "@/lib/tipos";
 import { sumarDias } from "@/lib/fechas";
@@ -9,6 +8,10 @@ import { dinero } from "@/lib/formato";
 import { cantidadSugerida, periodoSugerido } from "@/lib/programa";
 import { FORMAS_PAGO, UNIDADES, type AdelantoSaldo, type Trabajador } from "@/lib/tipos";
 import { crearRecibo, type EstadoFormulario } from "../acciones";
+
+// La vista previa (y su hoja de estilos) llega después del formulario: no retrasa el primer pintado.
+// Solo en el navegador (después de montar), con un espacio reservado mientras llega.
+const VistaPrevia = lazy(() => import("./VistaPrevia"));
 
 const NOMBRE_DIA = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
@@ -34,6 +37,7 @@ export function FormularioRecibo({
   faltas,
   inicial,
   fecha,
+  minimo,
   entrego,
 }: {
   trabajadores: Trabajador[];
@@ -44,11 +48,18 @@ export function FormularioRecibo({
   inicial?: string;
   /** Día en que se paga: hoy, o el que viene de la vista de Hoy. */
   fecha: string;
+  /** Primer día que puede cubrir un recibo (inicio de la plataforma). */
+  minimo: string;
   entrego: string;
 }) {
   const primero = trabajadores.find((t) => t.id === inicial);
   const [trabajadorId, setTrabajadorId] = useState(primero?.id ?? "");
-  const p0 = periodoSugerido(primero, fecha);
+  // El primer periodo se recorta al inicio de la plataforma.
+  const sugerido = (x: Trabajador | undefined) => {
+    const p = periodoSugerido(x, fecha);
+    return { inicio: p.inicio < minimo ? minimo : p.inicio, fin: p.fin };
+  };
+  const p0 = sugerido(primero);
   const [inicio, setInicio] = useState(p0.inicio);
   const [fin, setFin] = useState(p0.fin);
   const [fechaPago, setFechaPago] = useState(fecha);
@@ -58,6 +69,8 @@ export function FormularioRecibo({
   const [abono, setAbono] = useState("");
   const [nota, setNota] = useState("");
   const [estado, accion, enviando] = useActionState<EstadoFormulario, FormData>(crearRecibo, { error: null });
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
 
   const t = trabajadores.find((x) => x.id === trabajadorId);
   const pendientes = adelantos.filter((a) => a.trabajador_id === trabajadorId && a.saldo > 0);
@@ -70,7 +83,7 @@ export function FormularioRecibo({
   function escogerTrabajador(id: string) {
     const nuevo = trabajadores.find((x) => x.id === id);
     setTrabajadorId(id);
-    const p = periodoSugerido(nuevo, fecha);
+    const p = sugerido(nuevo);
     setInicio(p.inicio);
     setFin(p.fin);
     setCantidad(cantidadInicial(nuevo));
@@ -134,7 +147,7 @@ export function FormularioRecibo({
         <div className="rejilla-2">
           <div className="campo">
             <label htmlFor="inicio">Del</label>
-            <input id="inicio" type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} required />
+            <input id="inicio" type="date" value={inicio} min={minimo} onChange={(e) => setInicio(e.target.value)} required />
           </div>
           <div className="campo">
             <label htmlFor="fin">Al</label>
@@ -142,7 +155,7 @@ export function FormularioRecibo({
           </div>
           <div className="campo">
             <label htmlFor="fechaPago">Fecha de pago</label>
-            <input id="fechaPago" type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} required />
+            <input id="fechaPago" type="date" value={fechaPago} min={minimo} onChange={(e) => setFechaPago(e.target.value)} required />
           </div>
         </div>
 
@@ -307,21 +320,30 @@ export function FormularioRecibo({
       </form>
 
       <section className="derecha" aria-label="Vista previa del recibo">
-        <span className="titulo-vista">Así se va a imprimir (media carta, con copia)</span>
-        <ReciboHoja
-          datos={{
-            folio: null,
-            trabajador: t?.nombre ?? "",
-            actividad: t?.actividad ?? null,
-            periodoInicio: inicio,
-            periodoFin: fin,
-            fechaPago,
-            lineas: calculo.lineas,
-            total: calculo.total,
-            nota: nota.trim() || null,
-            entrego,
-          }}
-        />
+        <span className="titulo-vista">Así se va a imprimir (hoja carta: original y copia)</span>
+        {montado ? (
+          <Suspense fallback={<div className="hoja-cargando" aria-hidden="true" />}>
+            <VistaPrevia
+              trabajador={t}
+              cantidad={num}
+              minimo={minimo}
+              datos={{
+                folio: null,
+                trabajador: t?.nombre ?? "",
+                actividad: t?.actividad ?? null,
+                periodoInicio: inicio,
+                periodoFin: fin,
+                fechaPago,
+                lineas: calculo.lineas,
+                total: calculo.total,
+                nota: nota.trim() || null,
+                entrego,
+              }}
+            />
+          </Suspense>
+        ) : (
+          <div className="hoja-cargando" aria-hidden="true" />
+        )}
       </section>
     </div>
   );

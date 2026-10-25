@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { fechaInicio } from "@/lib/fechas";
 import { dinero, fechaLarga } from "@/lib/formato";
 import { compararConMinimo, descuentoPorFalta, esSemanaCompleta, salarioDiario, SALARIO_MINIMO_DIARIO } from "@/lib/ley";
 import { requerirSesion } from "@/lib/sesion";
-import { FORMAS_PAGO, type Trabajador } from "@/lib/tipos";
+import { FORMAS_PAGO, type DocumentoTrabajador, type Trabajador } from "@/lib/tipos";
 import { esUuid } from "@/lib/validacion";
 import { FormularioTrabajador } from "../FormularioTrabajador";
 import { SubirConstancia } from "./SubirConstancia";
+import { SubirDocumento } from "./SubirDocumento";
 
 interface CambioBitacora {
   id: number;
@@ -17,11 +19,18 @@ interface CambioBitacora {
   perfiles: { nombre: string } | null;
 }
 
-const CAMPOS: Record<string, string> = { alta: "Alta", tarifa: "Tarifa", pasaje: "Pasaje", forma_pago: "Forma de pago", activo: "Activo" };
+const CAMPOS: Record<string, string> = {
+  alta: "Alta",
+  tarifa: "Tarifa",
+  pasaje: "Pasaje",
+  forma_pago: "Forma de pago",
+  activo: "Activo",
+  salario_diario: "Salario diario",
+};
 
 function valorBitacora(campo: string, valor: string | null): string {
   if (valor === null) return "—";
-  if (campo === "tarifa" || campo === "pasaje") return dinero(Number(valor));
+  if (campo === "tarifa" || campo === "pasaje" || campo === "salario_diario") return dinero(Number(valor));
   if (campo === "forma_pago") return FORMAS_PAGO[valor as keyof typeof FORMAS_PAGO] ?? valor;
   if (campo === "activo") return valor === "true" ? "Sí" : "Dado de baja";
   if (campo === "alta") {
@@ -44,15 +53,22 @@ export default async function EditarTrabajador({ params }: { params: Promise<{ i
   const { supabase, perfil } = await requerirSesion();
   const { id } = await params;
   if (!esUuid(id)) notFound();
-  const [{ data: datos }, { data: bitacora }] = await Promise.all([
+  const [{ data: datos }, { data: bitacora }, { data: documentos }] = await Promise.all([
     supabase.from("trabajadores").select("*").eq("id", id).maybeSingle<Trabajador>(),
     supabase
       .from("trabajadores_bitacora")
       .select("id, campo, valor_anterior, valor_nuevo, cambiado_en, perfiles(nombre)")
       .eq("trabajador_id", id)
+      .gte("cambiado_en", fechaInicio())
       .order("cambiado_en", { ascending: false })
       .limit(20)
       .returns<CambioBitacora[]>(),
+    supabase
+      .from("trabajador_documentos")
+      .select("id, trabajador_id, nombre, ruta, subido_en")
+      .eq("trabajador_id", id)
+      .order("subido_en", { ascending: false })
+      .returns<DocumentoTrabajador[]>(),
   ]);
   if (!datos) notFound();
   const t = {
@@ -64,11 +80,18 @@ export default async function EditarTrabajador({ params }: { params: Promise<{ i
   const diario = salarioDiario(t);
   const porFalta = descuentoPorFalta(t);
   const minimo = compararConMinimo(t);
-  let constanciaUrl: string | null = null;
-  if (t.constancia_foto_path) {
-    const { data } = await supabase.storage.from("recibos-firmados").createSignedUrl(t.constancia_foto_path, 600);
-    constanciaUrl = data?.signedUrl ?? null;
-  }
+  // Enlaces firmados (10 minutos) para ver los documentos y la constancia, en paralelo.
+  const rutas = (documentos ?? []).map((d) => d.ruta);
+  const [{ data: firmadas }, { data: constancia }] = await Promise.all([
+    rutas.length
+      ? supabase.storage.from("recibos-firmados").createSignedUrls(rutas, 600)
+      : Promise.resolve({ data: [] as { path: string | null; signedUrl: string }[] }),
+    t.constancia_foto_path
+      ? supabase.storage.from("recibos-firmados").createSignedUrl(t.constancia_foto_path, 600)
+      : Promise.resolve({ data: null }),
+  ]);
+  const urlDe = new Map((firmadas ?? []).map((f) => [f.path ?? "", f.signedUrl]));
+  const constanciaUrl: string | null = constancia?.signedUrl ?? null;
 
   return (
     <>
@@ -159,6 +182,40 @@ export default async function EditarTrabajador({ params }: { params: Promise<{ i
       </div>
 
       <FormularioTrabajador trabajador={t} esAdmin={perfil.rol === "admin"} />
+
+      <section className="caja relleno formulario" style={{ maxWidth: 820 }} aria-labelledby="titulo-documentos">
+        <div>
+          <h2 id="titulo-documentos">Documentos del expediente</h2>
+          <p className="ayuda" style={{ margin: "4px 0 0" }}>
+            INE, comprobante de domicilio, contrato, alta en el IMSS… Se guardan en el espacio privado; no se borran.
+          </p>
+        </div>
+        {(documentos ?? []).length === 0 ? (
+          <p className="ayuda" style={{ margin: 0 }}>
+            Todavía no hay documentos.
+          </p>
+        ) : (
+          <ul className="bitacora">
+            {(documentos ?? []).map((d) => (
+              <li key={d.id}>
+                <span>
+                  <strong>{d.nombre}</strong>
+                  {urlDe.get(d.ruta) && (
+                    <>
+                      {" · "}
+                      <a href={urlDe.get(d.ruta) ?? undefined} target="_blank" rel="noreferrer">
+                        Ver
+                      </a>
+                    </>
+                  )}
+                </span>
+                <span className="cuando">Subido el {fechaHora.format(new Date(d.subido_en))}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <SubirDocumento trabajadorId={t.id} />
+      </section>
 
       <section className="caja relleno formulario" style={{ maxWidth: 820 }} aria-labelledby="titulo-bitacora">
         <div>

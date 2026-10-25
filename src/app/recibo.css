@@ -1,33 +1,60 @@
-/* Hoja de recibo: se usa en pantalla (vista previa) y al imprimir. */
+/* Comprobante de pago: se usa en pantalla (vista previa) y al imprimir en hoja carta. */
 .hoja {
+  --tinta: #141b2d;
+  --tinta-2: #4a5468;
+  --linea-hoja: #c9ced8;
   background: #fff;
-  color: #141b2d;
-  border: 1px solid #c9ced8;
-  padding: 26px 30px;
+  color: var(--tinta);
+  border: 1px solid var(--linea-hoja);
+  padding: 28px 32px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  font-size: 13px;
+  gap: 14px;
+  font-size: 12.5px;
+  line-height: 1.45;
   position: relative;
   font-family: var(--fuente);
 }
-.hoja .cabeza { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #141b2d; padding-bottom: 10px; }
-.hoja .negocio strong { display: block; font-size: 18px; }
-.hoja .negocio span { color: #4a5468; }
-.hoja .folio { text-align: right; }
-.hoja .folio span { display: block; font-size: 12px; color: #4a5468; }
-.hoja .folio strong { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 17px; }
-.hoja .copia-de { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #4a5468; }
-.hoja .datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 20px; }
-.hoja table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.hoja th { text-align: left; font-weight: 600; padding: 4px 0; border-bottom: 1px solid #c9ced8; }
-.hoja td { padding: 4px 0; }
-.hoja td.importe, .hoja th.importe { text-align: right; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
-.hoja tr.total td { border-top: 1px solid #141b2d; font-weight: 700; padding-top: 6px; }
-.hoja .letra { color: #4a5468; }
+.hoja h2, .hoja h3 { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-2); }
 .hoja p { margin: 0; }
-.hoja .firmas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; padding-top: 26px; }
-.hoja .firmas div { border-top: 1px solid #141b2d; padding-top: 4px; text-align: center; }
+.hoja .cabeza { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid var(--tinta); padding-bottom: 12px; }
+.hoja .negocio { display: flex; flex-direction: column; gap: 1px; }
+.hoja .negocio strong { font-size: 18px; letter-spacing: -0.01em; }
+.hoja .negocio span { color: var(--tinta-2); }
+.hoja .folio { text-align: right; display: flex; flex-direction: column; gap: 1px; }
+.hoja .folio span { color: var(--tinta-2); }
+.hoja .folio .titulo-doc { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tinta); }
+.hoja .folio strong { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 17px; }
+.hoja .copia-de { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--tinta-2); }
+.hoja .datos { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 18px; }
+.hoja .datos div { min-width: 0; }
+.hoja .datos .ancho { grid-column: span 2; }
+.hoja .datos dt { font-size: 10.5px; color: var(--tinta-2); }
+.hoja .datos dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.hoja .datos dd.clave { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-weight: 500; letter-spacing: 0.02em; }
+.hoja .desglose { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.hoja table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.hoja caption { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-2); padding-bottom: 4px; }
+.hoja th { text-align: left; font-weight: 600; font-size: 11px; color: var(--tinta-2); padding: 4px 0; border-bottom: 1px solid var(--linea-hoja); }
+.hoja td { padding: 5px 0; vertical-align: top; border-bottom: 1px dotted #dfe3ea; }
+.hoja td.importe, .hoja th.importe { text-align: right; padding-left: 10px; white-space: nowrap; }
+.hoja td.importe { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+.hoja td.sin { color: var(--tinta-2); }
+.hoja tr.especie td { color: var(--tinta-2); font-style: italic; }
+.hoja tfoot td { border-bottom: 0; border-top: 1px solid var(--tinta); font-weight: 700; padding-top: 6px; }
+.hoja .neto { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 16px; padding: 10px 14px; border: 1.5px solid var(--tinta); border-radius: 6px; }
+.hoja .neto span:first-child { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 11.5px; }
+.hoja .neto strong { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 20px; }
+.hoja .neto .letra { grid-column: 1 / -1; color: var(--tinta-2); }
+.hoja .notas { display: flex; flex-direction: column; gap: 4px; }
+.hoja .nota-alimentacion { padding: 6px 10px; border-left: 3px solid var(--tinta-2); background: #f5f6f8; }
+.hoja .condiciones p { color: var(--tinta); }
+.hoja .conformidad { padding-top: 4px; border-top: 1px solid var(--linea-hoja); }
+.hoja .firmas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; padding-top: 34px; margin-top: auto; }
+.hoja .firmas > div { text-align: center; display: flex; flex-direction: column; gap: 2px; }
+.hoja .firmas .linea { display: block; border-top: 1px solid var(--tinta); margin-bottom: 4px; }
+.hoja .firmas small { color: var(--tinta-2); font-size: 10.5px; }
+.hoja .firmas .firma-semanal { justify-content: flex-end; padding: 8px 10px; border: 1px dashed var(--linea-hoja); border-radius: 6px; color: var(--tinta-2); }
 .hoja .sello {
   position: absolute;
   top: 46%;
@@ -42,20 +69,59 @@
   opacity: 0.8;
   pointer-events: none;
 }
+@media screen and (max-width: 560px) {
+  .hoja { padding: 18px 16px; }
+  .hoja .cabeza { flex-direction: column; }
+  .hoja .folio { text-align: left; }
+  .hoja .datos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hoja .desglose { grid-template-columns: minmax(0, 1fr); }
+}
 
-/* Página de impresión: carta, original arriba y copia abajo */
-.pliego { width: 8.5in; margin: 0 auto 24px; background: #fff; }
-.pliego .media { height: 5.5in; padding: 0.3in 0.45in; overflow: hidden; }
-.pliego .media + .media { border-top: 1px dashed #8a93a3; }
-.pliego .hoja { border: 0; padding: 0; height: 100%; }
+/* Página de impresión: un comprobante por hoja carta (original y copia en hojas seguidas). */
+.pliego { width: 8.5in; height: 11in; margin: 0 auto 24px; background: #fff; box-shadow: 0 1px 3px rgba(20, 27, 45, 0.12); }
+.pliego .hoja { border: 0; padding: 0.5in 0.55in; height: 100%; overflow: hidden; }
 .barra-impresion { max-width: 8.5in; margin: 0 auto 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+@media screen and (max-width: 900px) {
+  .pliego { width: 100%; height: auto; }
+  .pliego .hoja { padding: 20px 16px; }
+}
 
 @media print {
   @page { size: letter; margin: 0; }
   body { background: #fff; }
   .no-imprimir { display: none !important; }
-  .pliego { margin: 0; page-break-after: always; break-after: page; }
+  .pliego { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
   .pliego:last-child { page-break-after: auto; break-after: auto; }
+}
+
+/* Hoja semanal de los que cobran cada día (carta horizontal). */
+.semanal { width: 11in; min-height: 8.5in; margin: 0 auto 24px; padding: 0.45in 0.5in; background: #fff; color: #141b2d; display: flex; flex-direction: column; gap: 12px; font-size: 12px; box-shadow: 0 1px 3px rgba(20, 27, 45, 0.12); }
+.semanal .cabeza { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #141b2d; padding-bottom: 10px; }
+.semanal .cabeza strong { display: block; font-size: 17px; }
+.semanal .cabeza span { color: #4a5468; display: block; }
+.semanal .cabeza .derecha { text-align: right; }
+.semanal p { margin: 0; }
+.semanal table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; table-layout: fixed; }
+.semanal th, .semanal td { border: 1px solid #c9ced8; padding: 6px; vertical-align: middle; }
+.semanal th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; background: #f5f6f8; text-align: center; }
+.semanal th:first-child { text-align: left; width: 21%; }
+.semanal th.firma-col { width: 20%; }
+.semanal td.monto, .semanal td.total { text-align: right; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; white-space: nowrap; }
+.semanal td.total { font-weight: 700; }
+.semanal td.firma { height: 54px; }
+.semanal td small { display: block; color: #4a5468; font-size: 10px; white-space: normal; font-family: var(--fuente); font-weight: 400; }
+.semanal tfoot td { font-weight: 700; background: #f5f6f8; }
+.semanal .pie { display: grid; grid-template-columns: 1fr 260px; gap: 24px; align-items: end; margin-top: auto; }
+.semanal .pie .linea { border-top: 1px solid #141b2d; padding-top: 4px; text-align: center; }
+@media print {
+  .semanal { box-shadow: none; margin: 0; width: 11in; height: 8.5in; overflow: hidden; break-after: page; page-break-after: always; }
+  .semanal:last-child { break-after: auto; page-break-after: auto; }
+}
+@page horizontal { size: letter landscape; margin: 0; }
+.semanal { page: horizontal; }
+@media screen and (max-width: 1100px) {
+  .semanal { width: 100%; min-height: 0; padding: 18px 14px; overflow-x: auto; }
+  .semanal table { min-width: 760px; }
 }
 
 /* Constancia de condiciones de trabajo: una hoja carta completa */

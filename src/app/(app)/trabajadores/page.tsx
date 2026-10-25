@@ -4,6 +4,7 @@ import { dinero } from "@/lib/formato";
 import { textoDiaPago, textoDias } from "@/lib/programa";
 import { requerirSesion } from "@/lib/sesion";
 import { FORMAS_PAGO, TIPOS_TRABAJADOR, type Trabajador } from "@/lib/tipos";
+import { BotonGuia } from "@/componentes/BotonGuia";
 
 export default async function Trabajadores() {
   const { supabase } = await requerirSesion();
@@ -18,7 +19,10 @@ export default async function Trabajadores() {
     <>
       <div className="encabezado">
         <div>
-          <h1>Trabajadores</h1>
+          <div className="titulo-con-guia">
+            <h1>Trabajadores</h1>
+            <BotonGuia apartado="trabajadores" />
+          </div>
           <div className="sub">{trabajadores.filter((t) => t.activo).length} activos</div>
         </div>
         <Link className="boton primario" href="/trabajadores/nuevo">

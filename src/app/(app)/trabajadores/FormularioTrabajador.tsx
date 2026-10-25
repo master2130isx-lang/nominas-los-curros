@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { cantidad } from "@/lib/formato";
 import { horasEntre, leerHorario } from "@/lib/horario";
 import { DIAS_SEMANA } from "@/lib/programa";
-import { FORMAS_PAGO, TIPOS_TRABAJADOR, type PagoCuando, type Trabajador } from "@/lib/tipos";
+import { FORMAS_PAGO, TIPOS_CONTRATO, TIPOS_TRABAJADOR, type PagoCuando, type Trabajador } from "@/lib/tipos";
 import type { EstadoFormulario } from "../recibos/acciones";
 import { guardarTrabajador } from "./acciones";
 
@@ -28,18 +28,67 @@ export function FormularioTrabajador({ trabajador, esAdmin = true }: { trabajado
       {t && <input type="hidden" name="id" value={t.id} />}
 
       <fieldset className="grupo">
-        <legend>Datos</legend>
+        <legend>Datos personales</legend>
         <div className="rejilla-dos">
           <div className="campo">
             <label htmlFor="nombre">Nombre completo</label>
-            <input id="nombre" name="nombre" type="text" defaultValue={t?.nombre} required />
+            <input id="nombre" name="nombre" type="text" defaultValue={t?.nombre} required autoComplete="off" />
           </div>
           <div className="campo">
-            <label htmlFor="actividad">Qué hace</label>
-            <input id="actividad" name="actividad" type="text" defaultValue={t?.actividad ?? ""} placeholder="Cocinera, aseo…" />
+            <label htmlFor="fecha_nacimiento">Fecha de nacimiento</label>
+            <input id="fecha_nacimiento" name="fecha_nacimiento" type="date" defaultValue={t?.fecha_nacimiento ?? ""} />
+          </div>
+        </div>
+        <div className="rejilla-tres uniforme">
+          <div className="campo">
+            <label htmlFor="curp">CURP</label>
+            <input id="curp" name="curp" type="text" maxLength={18} defaultValue={t?.curp ?? ""} autoCapitalize="characters" spellCheck={false} />
           </div>
           <div className="campo">
-            <label htmlFor="tipo">Tipo</label>
+            <label htmlFor="rfc">RFC</label>
+            <input id="rfc" name="rfc" type="text" maxLength={13} defaultValue={t?.rfc ?? ""} autoCapitalize="characters" spellCheck={false} />
+          </div>
+          <div className="campo">
+            <label htmlFor="nss">NSS (IMSS)</label>
+            <input id="nss" name="nss" type="text" inputMode="numeric" maxLength={11} defaultValue={t?.nss ?? ""} />
+          </div>
+        </div>
+        <div className="campo">
+          <label htmlFor="domicilio">Domicilio</label>
+          <input id="domicilio" name="domicilio" type="text" defaultValue={t?.domicilio ?? ""} placeholder="Calle, número, colonia, municipio" />
+        </div>
+        <div className="rejilla-tres uniforme">
+          <div className="campo">
+            <label htmlFor="telefono">Teléfono</label>
+            <input id="telefono" name="telefono" type="tel" defaultValue={t?.telefono ?? ""} />
+          </div>
+          <div className="campo">
+            <label htmlFor="contacto_emergencia">Contacto de emergencia</label>
+            <input id="contacto_emergencia" name="contacto_emergencia" type="text" defaultValue={t?.contacto_emergencia ?? ""} placeholder="Nombre y parentesco" />
+          </div>
+          <div className="campo">
+            <label htmlFor="telefono_emergencia">Tel. de emergencia</label>
+            <input id="telefono_emergencia" name="telefono_emergencia" type="tel" defaultValue={t?.telefono_emergencia ?? ""} />
+          </div>
+        </div>
+        <p className="ayuda" style={{ margin: 0 }}>
+          Solo el nombre es obligatorio. CURP, RFC y NSS se revisan con su formato oficial al guardar.
+        </p>
+      </fieldset>
+
+      <fieldset className="grupo">
+        <legend>Puesto y contrato</legend>
+        <div className="rejilla-dos uniforme">
+          <div className="campo">
+            <label htmlFor="actividad">Puesto</label>
+            <input id="actividad" name="actividad" type="text" defaultValue={t?.actividad ?? ""} placeholder="Cocinera, mesero, aseo…" />
+          </div>
+          <div className="campo">
+            <label htmlFor="fecha_ingreso">Fecha de ingreso</label>
+            <input id="fecha_ingreso" name="fecha_ingreso" type="date" defaultValue={t?.fecha_ingreso ?? ""} />
+          </div>
+          <div className="campo">
+            <label htmlFor="tipo">Tipo de trabajador</label>
             <select id="tipo" name="tipo" defaultValue={t?.tipo ?? "informal_turno"}>
               {Object.entries(TIPOS_TRABAJADOR).map(([v, n]) => (
                 <option key={v} value={v}>
@@ -49,27 +98,22 @@ export function FormularioTrabajador({ trabajador, esAdmin = true }: { trabajado
             </select>
           </div>
           <div className="campo">
-            <label htmlFor="fecha_ingreso">Fecha en que empezó</label>
-            <input id="fecha_ingreso" name="fecha_ingreso" type="date" defaultValue={t?.fecha_ingreso ?? ""} />
-          </div>
-          <div className="campo">
-            <label htmlFor="telefono">
-              Teléfono <span className="ayuda">· opcional</span>
-            </label>
-            <input id="telefono" name="telefono" type="tel" defaultValue={t?.telefono ?? ""} />
-          </div>
-          <div className="campo">
-            <label htmlFor="curp">
-              CURP <span className="ayuda">· opcional</span>
-            </label>
-            <input id="curp" name="curp" type="text" maxLength={18} defaultValue={t?.curp ?? ""} />
+            <label htmlFor="tipo_contrato">Tipo de contrato</label>
+            <select id="tipo_contrato" name="tipo_contrato" defaultValue={t?.tipo_contrato ?? ""}>
+              <option value="">Sin contrato escrito</option>
+              {Object.entries(TIPOS_CONTRATO).map(([v, n]) => (
+                <option key={v} value={v}>
+                  {n}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </fieldset>
 
       <fieldset className="grupo">
         <legend>Pago</legend>
-        <div className="rejilla-tres">
+        <div className="rejilla-tres uniforme">
           <div className="campo">
             <label htmlFor="forma_pago">Forma de pago</label>
             <select id="forma_pago" name="forma_pago" defaultValue={t?.forma_pago ?? "dia"}>
@@ -81,7 +125,7 @@ export function FormularioTrabajador({ trabajador, esAdmin = true }: { trabajado
             </select>
           </div>
           <div className="campo">
-            <label htmlFor="tarifa">Tarifa acordada (MXN)</label>
+            <label htmlFor="tarifa">Tarifa (MXN)</label>
             <input
               id="tarifa"
               name="tarifa"
@@ -92,21 +136,42 @@ export function FormularioTrabajador({ trabajador, esAdmin = true }: { trabajado
               defaultValue={t?.tarifa}
               required
               readOnly={bloqueado}
-              aria-describedby={bloqueado ? "tarifa-ayuda" : undefined}
+              aria-describedby={bloqueado ? "pago-ayuda" : undefined}
             />
-            {bloqueado && (
-              <span id="tarifa-ayuda" className="ayuda">
-                Solo el administrador cambia la tarifa.
-              </span>
-            )}
           </div>
           <div className="campo">
-            <label htmlFor="pasaje">
-              Apoyo de pasaje (MXN) <span className="ayuda">· opcional</span>
-            </label>
+            <label htmlFor="pasaje">Pasaje (MXN)</label>
             <input id="pasaje" name="pasaje" type="number" inputMode="decimal" min="0" step="0.5" defaultValue={t?.pasaje ?? 0} />
           </div>
         </div>
+        <div className="rejilla-dos uniforme">
+          <div className="campo">
+            <label htmlFor="salario_diario">Salario diario registrado (MXN)</label>
+            <input
+              id="salario_diario"
+              name="salario_diario"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              defaultValue={t?.salario_diario ?? ""}
+              readOnly={bloqueado}
+              aria-describedby={bloqueado ? "pago-ayuda" : undefined}
+            />
+          </div>
+          <div className="campo">
+            <span className="etiqueta">Alimentación</span>
+            <label className="casilla">
+              <input type="checkbox" name="alimentacion" defaultChecked={t ? t.alimentacion : true} />
+              Se le da de comer sin costo
+            </label>
+          </div>
+        </div>
+        {bloqueado && (
+          <p id="pago-ayuda" className="ayuda" style={{ margin: 0 }}>
+            Solo el administrador cambia la tarifa y el salario diario.
+          </p>
+        )}
         <div className="rejilla-dos">
           <div className="campo">
             <label htmlFor="pago_cuando">¿Cuándo se le paga?</label>
@@ -136,7 +201,8 @@ export function FormularioTrabajador({ trabajador, esAdmin = true }: { trabajado
           )}
         </div>
         <p className="ayuda" style={{ margin: 0 }}>
-          El apoyo de pasaje se suma por cada día o turno si cobra por día o turno; si no, una vez por recibo.
+          El pasaje (opcional) se suma por cada día o turno si cobra por día o turno; si no, una vez por recibo. El salario
+          diario registrado es el del contrato o el IMSS; la comida sale en el recibo como prestación en especie.
         </p>
       </fieldset>
 

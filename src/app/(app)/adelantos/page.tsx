@@ -5,6 +5,7 @@ import { dinero, fechaLarga, folio } from "@/lib/formato";
 import { requerirSesion } from "@/lib/sesion";
 import type { Abono, AdelantoSaldo, Trabajador } from "@/lib/tipos";
 import { FormularioAdelanto } from "./FormularioAdelanto";
+import { BotonGuia } from "@/componentes/BotonGuia";
 
 export default async function Adelantos({ searchParams }: { searchParams: Promise<{ ver?: string }> }) {
   const { supabase } = await requerirSesion();
@@ -38,7 +39,10 @@ export default async function Adelantos({ searchParams }: { searchParams: Promis
     <>
       <div className="encabezado">
         <div>
-          <h1>Préstamos y adelantos</h1>
+          <div className="titulo-con-guia">
+            <h1>Préstamos y adelantos</h1>
+            <BotonGuia apartado="prestamos" />
+          </div>
           <div className="sub">
             Le deben al negocio {dinero(totalDebe)}. En cada recibo se anota lo que el trabajador quiere abonar; puede ser
             $0.

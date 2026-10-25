@@ -1,8 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
+import { hoy, sumarDias } from "./src/lib/fechas";
 
 // Pruebas de punta a punta en celular (375 px) contra el Supabase local con los
 // datos ficticios de supabase/seed.sql. Ver README: "Pruebas".
 const PUERTO = Number(process.env.PUERTO_E2E ?? 3100);
+// Las pruebas usan semanas pasadas: el inicio de la plataforma se mueve 60 días atrás.
+export const INICIO_E2E = process.env.FECHA_INICIO ?? sumarDias(hoy(), -60);
 
 export default defineConfig({
   testDir: "e2e",
@@ -22,8 +25,9 @@ export default defineConfig({
   },
   webServer: {
     command: `npm run start -- -p ${PUERTO}`,
+    env: { FECHA_INICIO: INICIO_E2E },
     url: `http://127.0.0.1:${PUERTO}/login`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });
