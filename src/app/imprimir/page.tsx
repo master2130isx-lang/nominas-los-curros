@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ReciboHoja } from "@/componentes/ReciboHoja";
-import { esFecha, semanaDe } from "@/lib/fechas";
+import { desdeInicio, esFecha, semanaDe } from "@/lib/fechas";
 import { rango } from "@/lib/formato";
 import { cargarRecibos } from "@/lib/recibos";
 import { requerirSesion } from "@/lib/sesion";
@@ -21,7 +21,8 @@ export default async function Imprimir({
   let titulo = "Imprimir recibo";
   let recibos: Recibo[] = [];
   if (filtros.semana && esFecha(filtros.semana)) {
-    const { inicio, fin } = semanaDe(filtros.semana);
+    const { inicio: lunes, fin } = semanaDe(desdeInicio(filtros.semana));
+    const inicio = desdeInicio(lunes);
     titulo = `Recibos de la semana del ${rango(inicio, fin)}`;
     const { data } = await supabase
       .from("recibos")
@@ -51,7 +52,7 @@ export default async function Imprimir({
           <h1 style={{ fontSize: 22 }}>{titulo}</h1>
           <div style={{ color: "var(--tenue)" }}>
             {imprimibles.length} {imprimibles.length === 1 ? "recibo" : "recibos"} · hoja carta,{" "}
-            {conCopia ? "original arriba y copia abajo" : "dos recibos por hoja, sin copia"}
+            {conCopia ? "una hoja para el original y otra para la copia del trabajador" : "una hoja por recibo, sin copia"}
           </div>
         </div>
         <div className="acciones">
@@ -59,37 +60,23 @@ export default async function Imprimir({
             Volver
           </Link>
           <Link className="boton chico" href={`/imprimir?${params}`}>
-            {conCopia ? "Sin copia (ahorra papel)" : "Con copia"}
+            {conCopia ? "Sin copia" : "Con copia"}
           </Link>
           <BotonImprimir ids={imprimibles.map((c) => c.recibo.id)} />
         </div>
       </div>
       {imprimibles.length === 0 ? (
         <p className="vacio no-imprimir">No hay recibos para imprimir.</p>
-      ) : conCopia ? (
-        imprimibles.map(({ recibo, hoja }) => {
-          const re = recibo.impresiones > 0 ? "REIMPRESIÓN · " : "";
-          return (
-            <div className="pliego" key={recibo.id}>
-              <div className="media">
-                <ReciboHoja datos={hoja} marca={`${re}ORIGINAL`} />
-              </div>
-              <div className="media">
-                <ReciboHoja datos={hoja} marca={`${re}COPIA PARA EL TRABAJADOR`} />
-              </div>
-            </div>
-          );
-        })
       ) : (
-        Array.from({ length: Math.ceil(imprimibles.length / 2) }, (_, i) => imprimibles.slice(i * 2, i * 2 + 2)).map((par) => (
-          <div className="pliego" key={par[0].recibo.id}>
-            {par.map(({ recibo, hoja }) => (
-              <div className="media" key={recibo.id}>
-                <ReciboHoja datos={hoja} marca={recibo.impresiones > 0 ? "REIMPRESIÓN" : undefined} />
-              </div>
-            ))}
-          </div>
-        ))
+        imprimibles.flatMap(({ recibo, hoja }) => {
+          const re = recibo.impresiones > 0 ? "REIMPRESIÓN · " : "";
+          const hojas = conCopia ? [`${re}ORIGINAL`, `${re}COPIA PARA EL TRABAJADOR`] : [re ? "REIMPRESIÓN" : "ORIGINAL"];
+          return hojas.map((marca) => (
+            <div className="pliego" key={`${recibo.id}-${marca}`}>
+              <ReciboHoja datos={hoja} marca={marca} />
+            </div>
+          ));
+        })
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { PastillaFalta } from "@/componentes/PastillaFalta";
-import { esFecha, hoy, sumarDias } from "@/lib/fechas";
+import { desdeInicio, esFecha, fechaInicio, hoy, sumarDias } from "@/lib/fechas";
 import { fechaConDia, fechaLarga, folio } from "@/lib/formato";
 import { faltasSinAviso30 } from "@/lib/programa";
 import { requerirSesion } from "@/lib/sesion";
@@ -9,6 +9,7 @@ import { TIPOS_FALTA, type Falta, type Trabajador } from "@/lib/tipos";
 import { leerFiltroTrabajador } from "@/lib/validacion";
 import { FormularioFalta } from "./FormularioFalta";
 import { MarcarFalta } from "./MarcarFalta";
+import { BotonGuia } from "@/componentes/BotonGuia";
 
 const POR_PAGINA = 50;
 
@@ -21,7 +22,8 @@ export default async function Faltas({
   const params = await searchParams;
   const filtro = leerFiltroTrabajador(params.trabajador);
   const hoyMx = hoy();
-  const desde = esFecha(params.desde) ? params.desde : sumarDias(hoyMx, -89);
+  const arranque = fechaInicio();
+  const desde = desdeInicio(esFecha(params.desde) ? params.desde : sumarDias(hoyMx, -89), arranque);
   const hasta = esFecha(params.hasta) ? params.hasta : hoyMx;
   const pagina = Math.max(1, Math.floor(Number(params.pagina)) || 1);
 
@@ -47,7 +49,7 @@ export default async function Faltas({
       .from("faltas")
       .select("trabajador_id, fecha, tipo, fraccion")
       .eq("tipo", "sin_aviso")
-      .gte("fecha", sumarDias(hoyMx, -29))
+      .gte("fecha", desdeInicio(sumarDias(hoyMx, -29), arranque))
       .returns<Pick<Falta, "trabajador_id" | "fecha" | "tipo" | "fraccion">[]>(),
   ]);
   const lista = (faltas ?? []).map((f) => ({ ...f, fraccion: Number(f.fraccion) }));
@@ -67,7 +69,10 @@ export default async function Faltas({
     <>
       <div className="encabezado">
         <div>
-          <h1>Faltas</h1>
+          <div className="titulo-con-guia">
+            <h1>Faltas</h1>
+            <BotonGuia apartado="faltas" />
+          </div>
           <div className="sub">
             Toda falta se anota, se descuente o no. En los de semana fija entran solas al recibo de la semana.
           </div>
@@ -86,7 +91,7 @@ export default async function Faltas({
         </p>
       )}
 
-      <FormularioFalta trabajadores={(trabajadores ?? []).filter((t) => t.activo)} hoy={hoyMx} inicial={filtro.id} />
+      <FormularioFalta trabajadores={(trabajadores ?? []).filter((t) => t.activo)} hoy={hoyMx} minimo={arranque} inicial={filtro.id} />
 
       <section className="seccion" aria-labelledby="titulo-lista">
         <header>
@@ -108,11 +113,11 @@ export default async function Faltas({
           </div>
           <div className="campo">
             <label htmlFor="filtro-desde">Desde</label>
-            <input id="filtro-desde" type="date" name="desde" defaultValue={desde} max={hasta} />
+            <input id="filtro-desde" type="date" name="desde" defaultValue={desde} min={arranque} max={hasta} />
           </div>
           <div className="campo">
             <label htmlFor="filtro-hasta">Hasta</label>
-            <input id="filtro-hasta" type="date" name="hasta" defaultValue={hasta} />
+            <input id="filtro-hasta" type="date" name="hasta" defaultValue={hasta} min={arranque} />
           </div>
           <button type="submit" className="boton">
             Ver
@@ -216,10 +221,11 @@ export default async function Faltas({
             </span>
           </nav>
         )}
-        {!params.desde && (
+        {!params.desde && desde > arranque && (
           <p className="ayuda" style={{ margin: 0 }}>
             Se muestran los últimos 90 días.{" "}
-            <Link href={enlace({ desde: sumarDias(hoyMx, -364) })}>Ver todo el último año</Link> o escoge otras fechas.
+            <Link href={enlace({ desde: desdeInicio(sumarDias(hoyMx, -364), arranque) })}>Ver desde el inicio</Link> o escoge
+            otras fechas.
           </p>
         )}
       </section>

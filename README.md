@@ -6,14 +6,16 @@ Hecha con Next.js (en Vercel) y Supabase (base de datos, cuentas y fotos de reci
 
 ## Qué hace
 
+- **Fecha de inicio**: la plataforma empezó el 24 de octubre de 2026. Ninguna pantalla muestra ni deja capturar
+  días o semanas anteriores (se puede mover con la variable `FECHA_INICIO`, ver abajo).
+- **Guía** en cada apartado del menú: un botón con los pasos numerados para los encargados.
 - **Pagos del día** (la pantalla de inicio): a quién le toca cobrar hoy, ayer o mañana según su día de pago
   y los días que trabaja. Se palomean y se hacen e imprimen todos los recibos del día de una vez. También
   avisa de pagos que se quedaron pendientes en días anteriores.
 - **Semana** (lunes a domingo): quién ya cobró, quién falta, total pagado y recibos sin foto firmada,
   agrupado por día de pago.
 - **Asistencia de la semana**: cuadrícula de trabajadores × días. Un toque en un día marca la falta (o medio día),
-  la corrige o la quita. Aparecen todos, aunque no tengan días de trabajo marcados, y los días de antes de usar la
-  plataforma, para ponerse al corriente. Los días que ya están en un recibo muestran el folio y no se marcan.
+  la corrige o la quita. Aparecen todos, aunque no tengan días de trabajo marcados. Los días que ya están en un recibo muestran el folio y no se marcan.
 - **Faltas**: se marcan desde Pagos del día ("¿Quién faltó?"), desde Asistencia o desde Faltas: sin aviso, permiso sin goce o
   justificada con pago, de día completo o medio día. En los de semana fija entran solas al recibo: las que se
   descuentan restan el sueldo semanal ÷ días pactados (con 6 días y 1 de descanso, la falta sin aviso es el salario
@@ -30,14 +32,22 @@ Hecha con Next.js (en Vercel) y Supabase (base de datos, cuentas y fotos de reci
 - **Folio consecutivo**: lo asigna la base de datos al guardar; no se repite ni se salta.
 - **Recibos que no se editan**: un recibo guardado no se cambia ni se borra. Si hay un error, el administrador
   lo cancela con un motivo y se hace uno nuevo; sus abonos regresan al saldo y sus faltas vuelven a quedar pendientes.
-- **Impresión**: hoja carta con original arriba y copia para el trabajador abajo, o dos recibos por hoja sin
-  copia. Se pueden imprimir todos los de la semana de una vez. Desde la segunda impresión sale marcado como
+- **Comprobante de pago** en hoja carta: datos del patrón y del trabajador, periodo, percepciones y deducciones,
+  neto con letra, condiciones de trabajo (lugar, horario, alimentación), leyenda de conformidad, firma del trabajador
+  y del patrón. La comida sin costo sale como prestación en especie; si el trabajador gana menos que el mínimo
+  proporcional, una nota la registra como parte de su compensación.
+- **Impresión**: una hoja carta para el original y otra para la copia del trabajador (o solo el original). Se pueden imprimir todos los de la semana de una vez. Desde la segunda impresión sale marcado como
   REIMPRESIÓN.
+- **Hoja semanal para firmar** (Semana → “Hoja semanal para firmar”): los que cobran cada día no firman a diario;
+  una hoja carta horizontal lista a todos con lo que se les pagó cada día, el total y un solo espacio de firma. Al
+  subir la foto de la hoja firmada, sus recibos de esa semana quedan como firmados.
 - **Firma en papel**: el trabajador firma (o pone su huella) y se sube una foto o escaneo del recibo firmado.
   Las fotos se guardan en un espacio privado.
 - **Préstamos y adelantos** con saldo: en cada recibo se escribe lo que el trabajador quiere abonar (puede ser
   $0), se aplica primero al más viejo y el recibo dice cuánto resta. En Préstamos se ve el historial de abonos.
-- **Trabajadores**. Solo el administrador cambia la tarifa o da de baja; cada cambio de tarifa, pasaje, forma de
+- **Trabajadores** con expediente laboral: datos personales (nacimiento, CURP, RFC, NSS, domicilio, teléfono y
+  contacto de emergencia), puesto, fecha de ingreso, tipo de contrato, salario diario registrado, forma de pago,
+  tarifa, pasaje, alimentación y documentos adjuntos (INE, contrato…). Solo el administrador cambia la tarifa o da de baja; cada cambio de tarifa, pasaje, forma de
   pago o baja queda en un historial de solo lectura (quién, cuándo, antes y después).
 - Solo entran las personas que el administrador da de alta (rol administrador o encargado). Solo el
   administrador cancela recibos.
@@ -57,6 +67,8 @@ Hecha con Next.js (en Vercel) y Supabase (base de datos, cuentas y fotos de reci
    - `supabase/migrations/20261029000000_faltas_en_recibo.sql`
    - `supabase/migrations/20261029000001_editar_faltas.sql`
    - `supabase/migrations/20261029000002_bitacora_trabajadores.sql`
+   - `supabase/migrations/20261030000000_expediente.sql`
+   - `supabase/migrations/20261030000001_hoja_semanal.sql`
 
    Cada vez que se agrega un archivo nuevo en `supabase/migrations`, hay que correrlo una vez en el
    SQL Editor (solo el nuevo, en orden de nombre).
@@ -86,6 +98,9 @@ Hecha con Next.js (en Vercel) y Supabase (base de datos, cuentas y fotos de reci
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `NEXT_PUBLIC_DOMICILIO_NEGOCIO` (opcional): el domicilio que sale en los recibos, por ejemplo
      `Calle Hidalgo 123, Centro, Tamuín, S.L.P.`
+   - `NEXT_PUBLIC_PATRON_NOMBRE`, `NEXT_PUBLIC_PATRON_RFC`, `NEXT_PUBLIC_REGISTRO_PATRONAL` (opcionales): datos del
+     patrón en recibos y hojas semanales. Sin RFC o registro, esas líneas no se imprimen.
+   - `FECHA_INICIO` (opcional, AAAA-MM-DD): primer día que muestra la plataforma. Si no se pone, es el 2026-10-24.
 3. **Deploy**.
 
 ## Migraciones nuevas: cómo probarlas y revertirlas
@@ -99,7 +114,7 @@ Antes de correrlas en producción:
 1. Crea un proyecto **de prueba** en Supabase (gratis) y corre ahí todas las migraciones en orden.
 2. Opcional: corre `supabase/seed.sql` en ese proyecto de prueba para tener cuentas y trabajadores ficticios.
 3. Apunta tu `.env.local` a ese proyecto y recorre los flujos (o corre las pruebas, ver abajo).
-4. Si todo está bien, corre en el SQL Editor de producción **solo** los tres archivos nuevos, en orden. Nunca
+4. Si todo está bien, corre en el SQL Editor de producción **solo** los archivos nuevos, en orden. Nunca
    corras `seed.sql` en producción.
 
 ## Desarrollo local

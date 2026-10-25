@@ -9,10 +9,13 @@ import { TiposFalta } from "./TiposFalta";
 export function FormularioFalta({
   trabajadores,
   hoy,
+  minimo,
   inicial,
 }: {
   trabajadores: { id: string; nombre: string; forma_pago: FormaPago }[];
   hoy: string;
+  /** Primer día que se puede anotar (inicio de la plataforma). */
+  minimo: string;
   inicial?: string;
 }) {
   const [estado, accion, enviando] = useActionState<EstadoFalta, FormData>(anotarFalta, { error: null, ok: false });
@@ -58,7 +61,7 @@ export function FormularioFalta({
         </div>
         <div className="campo">
           <label htmlFor="fecha">Día que faltó</label>
-          <input id="fecha" name="fecha" type="date" defaultValue={hoy} max={hoy} required />
+          <input id="fecha" name="fecha" type="date" defaultValue={hoy} min={minimo} max={hoy} required />
         </div>
       </div>
       <TiposFalta valor={tipo} alCambiar={setTipo} semanaFija={semanaFija} leyenda="Tipo de falta" />

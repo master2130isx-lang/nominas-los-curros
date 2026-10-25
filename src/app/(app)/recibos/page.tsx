@@ -2,9 +2,11 @@ import Link from "next/link";
 import { EstadoRecibo } from "@/componentes/EstadoRecibo";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { dinero, fechaLarga, folio, rango } from "@/lib/formato";
+import { fechaInicio } from "@/lib/fechas";
 import { requerirSesion } from "@/lib/sesion";
 import type { EstadoRecibo as Estado, Recibo, Trabajador } from "@/lib/tipos";
 import { leerFiltroTrabajador } from "@/lib/validacion";
+import { BotonGuia } from "@/componentes/BotonGuia";
 
 const ESTADOS: Estado[] = ["sin_firma", "firmado", "cancelado"];
 
@@ -19,6 +21,7 @@ export default async function Recibos({
   let consulta = supabase
     .from("recibos")
     .select("id, folio, trabajador_nombre, periodo_inicio, periodo_fin, fecha_pago, total, estado")
+    .gte("fecha_pago", fechaInicio())
     .order("folio", { ascending: false })
     .limit(200);
   if (filtro.id) consulta = consulta.eq("trabajador_id", filtro.id);
@@ -32,7 +35,10 @@ export default async function Recibos({
     <>
       <div className="encabezado">
         <div>
-          <h1>Recibos</h1>
+          <div className="titulo-con-guia">
+            <h1>Recibos</h1>
+            <BotonGuia apartado="recibos" />
+          </div>
           <div className="sub">Los últimos 200, del más nuevo al más viejo.</div>
         </div>
       </div>

@@ -2,12 +2,13 @@ import Link from "next/link";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { IconoDerecha, IconoIzquierda } from "@/componentes/Iconos";
 import { TEXTO_FALTA } from "@/componentes/PastillaFalta";
-import { esFecha, hoy, semanaDe, sumarDias } from "@/lib/fechas";
+import { desdeInicio, esFecha, fechaInicio, hoy, semanaDe, sumarDias } from "@/lib/fechas";
 import { fechaConDia, folio, rango } from "@/lib/formato";
-import { DIAS_SEMANA, iniciales, tonoAvatar, trabajaEse } from "@/lib/programa";
+import { DIAS_SEMANA, diaIso, iniciales, tonoAvatar, trabajaEse } from "@/lib/programa";
 import { requerirSesion } from "@/lib/sesion";
 import type { Falta, Recibo, Trabajador } from "@/lib/tipos";
 import { CeldaFalta } from "./CeldaFalta";
+import { BotonGuia } from "@/componentes/BotonGuia";
 
 type TrabajadorSemana = Pick<Trabajador, "id" | "nombre" | "actividad" | "forma_pago" | "dias_trabajo">;
 type ReciboSemana = Pick<Recibo, "id" | "folio" | "trabajador_id" | "periodo_inicio" | "periodo_fin">;
@@ -18,8 +19,12 @@ export default async function Asistencia({ searchParams }: { searchParams: Promi
   const { supabase } = await requerirSesion();
   const { semana } = await searchParams;
   const hoyMx = hoy();
-  const { inicio, fin } = semanaDe(esFecha(semana) ? semana : hoyMx);
-  const dias = Array.from({ length: 7 }, (_, i) => sumarDias(inicio, i));
+  const arranque = fechaInicio();
+  // La primera semana visible es la del inicio de la plataforma; sus días anteriores no se muestran.
+  const { inicio, fin } = semanaDe(desdeInicio(esFecha(semana) ? semana : hoyMx, arranque));
+  const primeraSemana = inicio <= arranque;
+  const dias = Array.from({ length: 7 }, (_, i) => sumarDias(inicio, i)).filter((d) => d >= arranque);
+  const desde = dias[0];
 
   const [{ data: trabajadores }, { data: faltasDatos }, { data: recibos }] = await Promise.all([
     supabase
@@ -31,7 +36,7 @@ export default async function Asistencia({ searchParams }: { searchParams: Promi
     supabase
       .from("faltas")
       .select("id, trabajador_id, fecha, tipo, fraccion, nota, recibo_id")
-      .gte("fecha", inicio)
+      .gte("fecha", desdeInicio(inicio, arranque))
       .lte("fecha", fin)
       .returns<Omit<Falta, "creado_en">[]>(),
     supabase
@@ -39,7 +44,7 @@ export default async function Asistencia({ searchParams }: { searchParams: Promi
       .select("id, folio, trabajador_id, periodo_inicio, periodo_fin")
       .neq("estado", "cancelado")
       .lte("periodo_inicio", fin)
-      .gte("periodo_fin", inicio)
+      .gte("periodo_fin", desdeInicio(inicio, arranque))
       .order("folio")
       .returns<ReciboSemana[]>(),
   ]);
@@ -55,18 +60,24 @@ export default async function Asistencia({ searchParams }: { searchParams: Promi
     <>
       <div className="encabezado">
         <div>
-          <span className="antetitulo">{rango(inicio, fin)}</span>
-          <h1>Asistencia de la semana</h1>
-          <div className="sub">
-            Toca un día para anotar la falta, medio día o quitarla. Aquí se capturan también los días de antes de usar la
-            plataforma.
+          <span className="antetitulo">{rango(desde, fin)}</span>
+          <div className="titulo-con-guia">
+            <h1>Asistencia de la semana</h1>
+            <BotonGuia apartado="asistencia" />
           </div>
+          <div className="sub">Toca un día para anotar la falta, medio día o quitarla.</div>
         </div>
         <div className="navegacion-dia">
           <nav className="segmentado" aria-label="Cambiar de semana">
-            <Link href={`/asistencia?semana=${sumarDias(inicio, -7)}`} aria-label="Semana anterior">
-              <IconoIzquierda /> <span>Anterior</span>
-            </Link>
+            {primeraSemana ? (
+              <span aria-disabled="true" className="deshabilitado" title="La plataforma empezó esta semana">
+                <IconoIzquierda /> <span>Anterior</span>
+              </span>
+            ) : (
+              <Link href={`/asistencia?semana=${sumarDias(inicio, -7)}`} aria-label="Semana anterior">
+                <IconoIzquierda /> <span>Anterior</span>
+              </Link>
+            )}
             <Link href="/asistencia" aria-current={esEstaSemana ? "true" : undefined}>
               Esta semana
             </Link>
@@ -77,7 +88,7 @@ export default async function Asistencia({ searchParams }: { searchParams: Promi
           <form method="get" action="/asistencia">
             <div className="campo">
               <label htmlFor="ir-semana">Ir a la semana del</label>
-              <input id="ir-semana" type="date" name="semana" defaultValue={inicio} max={hoyMx} />
+              <input id="ir-semana" type="date" name="semana" defaultValue={desdeInicio(inicio, arranque)} min={arranque} max={hoyMx} />
             </div>
             <button type="submit" className="boton chico">
               Ir
@@ -133,13 +144,13 @@ export default async function Asistencia({ searchParams }: { searchParams: Promi
       ) : (
         <div className="caja asistencia-caja">
           <table className="asistencia">
-            <caption className="sr-only">Asistencia del {rango(inicio, fin)}, por trabajador y día</caption>
+            <caption className="sr-only">Asistencia del {rango(desde, fin)}, por trabajador y día</caption>
             <thead>
               <tr>
                 <th scope="col">Trabajador</th>
-                {dias.map((d, i) => (
+                {dias.map((d) => (
                   <th key={d} scope="col" className={d === hoyMx ? "hoy-col" : undefined}>
-                    <abbr title={fechaConDia(d)}>{DIAS_SEMANA[i].slice(0, 3)}</abbr>
+                    <abbr title={fechaConDia(d)}>{DIAS_SEMANA[diaIso(d) - 1].slice(0, 3)}</abbr>
                     <span className="num-dia">{Number(d.slice(8))}</span>
                   </th>
                 ))}
@@ -161,11 +172,11 @@ export default async function Asistencia({ searchParams }: { searchParams: Promi
                       </span>
                     </span>
                   </th>
-                  {dias.map((d, i) => {
+                  {dias.map((d) => {
                     const f = faltas.get(`${t.id}|${d}`);
                     const recibo = cubre(t.id, d);
                     const libre = !trabajaEse(t, d);
-                    const corto = DIAS_SEMANA[i].slice(0, 3);
+                    const corto = DIAS_SEMANA[diaIso(d) - 1].slice(0, 3);
                     const encabezadoMovil = (
                       <span className="dia-movil" aria-hidden="true">
                         <span>{corto.slice(0, 2)}</span> {Number(d.slice(8))}
@@ -194,7 +205,7 @@ export default async function Asistencia({ searchParams }: { searchParams: Promi
                             }. No se puede marcar.`}
                           >
                             {encabezadoMovil}
-                            <span className="estado largo">{f ? TEXTO_FALTA[f.tipo] : "Pagado"}</span>
+                            <span className="estado largo">{f ? TEXTO_FALTA[f.tipo].charAt(0).toUpperCase() + TEXTO_FALTA[f.tipo].slice(1) : "Pagado"}</span>
                             {numero && <span className="estado">F{numero}</span>}
                           </Link>
                         </td>

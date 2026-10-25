@@ -3,7 +3,7 @@ import { EstadoRecibo } from "@/componentes/EstadoRecibo";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { IconoAsistencia, IconoDerecha, IconoIzquierda } from "@/componentes/Iconos";
 import { PastillaFalta } from "@/componentes/PastillaFalta";
-import { esFecha, hoy, sumarDias } from "@/lib/fechas";
+import { desdeInicio, esFecha, fechaInicio, hoy, sumarDias } from "@/lib/fechas";
 import { dinero, fechaConDia, folio } from "@/lib/formato";
 import {
   agruparPendientes,
@@ -25,6 +25,7 @@ import type { AdelantoSaldo, Falta, Recibo, Trabajador } from "@/lib/tipos";
 import { FORMAS_PAGO } from "@/lib/tipos";
 import { MarcarFalta } from "./faltas/MarcarFalta";
 import { LoteDelDia, type FilaLote } from "./LoteDelDia";
+import { BotonGuia } from "@/componentes/BotonGuia";
 
 type TrabajadorDia = Pick<
   Trabajador,
@@ -56,7 +57,10 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
   const { supabase } = await requerirSesion();
   const { fecha: f } = await searchParams;
   const hoyMx = hoy();
-  const fecha = esFecha(f) ? f : hoyMx;
+  const inicio = fechaInicio();
+  // Nada antes de la fecha de implementación: el primer día visible es el inicio.
+  const fecha = desdeInicio(esFecha(f) ? f : hoyMx, inicio);
+  const primerDia = fecha === inicio;
 
   const [{ data: trabajadores }, { data: recibos }, { data: adelantos }, { data: faltasDatos }] = await Promise.all([
     supabase
@@ -69,7 +73,7 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
       .from("recibos")
       .select("id, folio, trabajador_id, trabajador_nombre, periodo_inicio, periodo_fin, fecha_pago, total, estado, impresiones")
       .neq("estado", "cancelado")
-      .gte("periodo_fin", sumarDias(fecha, -DIAS_PENDIENTES))
+      .gte("periodo_fin", desdeInicio(sumarDias(fecha, -DIAS_PENDIENTES), inicio))
       .lte("periodo_inicio", sumarDias(fecha, 7))
       .order("folio")
       .returns<ReciboDia[]>(),
@@ -77,7 +81,7 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
     supabase
       .from("faltas")
       .select("id, trabajador_id, fecha, tipo, fraccion, nota, recibo_id")
-      .gte("fecha", sumarDias(fecha, -37))
+      .gte("fecha", desdeInicio(sumarDias(fecha, -37), inicio))
       .lte("fecha", sumarDias(fecha, 7))
       .order("fecha")
       .returns<Omit<Falta, "creado_en">[]>(),
@@ -87,7 +91,7 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
     ...t,
     tarifa: Number(t.tarifa),
     pasaje: Number(t.pasaje),
-    desde: t.fecha_ingreso,
+    desde: t.fecha_ingreso ? desdeInicio(t.fecha_ingreso, inicio) : inicio,
   }));
   const lista = recibos ?? [];
 
@@ -104,10 +108,13 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
   const faltaron = trabajanHoy.filter((t) => faltaDe(faltas, t.id, fecha)).length;
   const adelantoPendiente = new Map<string, number>();
   for (const a of adelantos ?? []) adelantoPendiente.set(a.trabajador_id, (adelantoPendiente.get(a.trabajador_id) ?? 0) + Number(a.saldo));
-  const semanaAnterior = `/asistencia?semana=${sumarDias(fecha, -1)}`;
+  const semanaAnterior = `/asistencia?semana=${desdeInicio(sumarDias(fecha, -1), inicio)}`;
+  const diasRevisados = Math.min(DIAS_PENDIENTES, Math.round((Date.parse(fecha) - Date.parse(inicio)) / 86400000));
+  const textoPeriodo = diasRevisados < DIAS_PENDIENTES ? `desde el ${fechaConDia(inicio)}` : `de los últimos ${DIAS_PENDIENTES} días`;
 
   const filasLote: FilaLote[] = porCobrar.map((t) => {
-    const p = periodoSugerido(t, fecha);
+    const sugerido = periodoSugerido(t, fecha);
+    const p = { inicio: desdeInicio(sugerido.inicio, inicio), fin: sugerido.fin };
     const mediaFalta = t.forma_pago === "dia" || t.forma_pago === "turno" ? faltaDe(faltas, t.id, fecha) : undefined;
     const sugerida = cantidadSugerida(t);
     return {
@@ -136,13 +143,22 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
           <span className="antetitulo">
             {fechaConDia(fecha)} de {fecha.slice(0, 4)}
           </span>
-          <h1>{titulo(fecha, hoyMx)}</h1>
+          <div className="titulo-con-guia">
+            <h1>{titulo(fecha, hoyMx)}</h1>
+            <BotonGuia apartado="hoy" />
+          </div>
         </div>
         <div className="navegacion-dia">
           <nav className="segmentado" aria-label="Cambiar de día">
-            <Link href={`/?fecha=${sumarDias(fecha, -1)}`} aria-label="Día anterior">
-              <IconoIzquierda /> <span>Anterior</span>
-            </Link>
+            {primerDia ? (
+              <span aria-disabled="true" className="deshabilitado" title="La plataforma empezó este día">
+                <IconoIzquierda /> <span>Anterior</span>
+              </span>
+            ) : (
+              <Link href={`/?fecha=${sumarDias(fecha, -1)}`} aria-label="Día anterior">
+                <IconoIzquierda /> <span>Anterior</span>
+              </Link>
+            )}
             <Link href="/" aria-current={fecha === hoyMx ? "true" : undefined}>
               Hoy
             </Link>
@@ -153,7 +169,7 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
           <form method="get">
             <div className="campo">
               <label htmlFor="ir-fecha">Ir a una fecha</label>
-              <input id="ir-fecha" type="date" name="fecha" defaultValue={fecha} />
+              <input id="ir-fecha" type="date" name="fecha" defaultValue={fecha} min={inicio} />
             </div>
             <button type="submit" className="boton chico">
               Ir
@@ -183,10 +199,12 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
           <span className="nota">
             {pendientes.length ? (
               <a className="cubre" href="#pendientes">
-                De los últimos {DIAS_PENDIENTES} días · revisar
+                {textoPeriodo.charAt(0).toUpperCase() + textoPeriodo.slice(1)} · revisar
               </a>
+            ) : primerDia ? (
+              "Primer día de la plataforma"
             ) : (
-              `Al corriente en los últimos ${DIAS_PENDIENTES} días`
+              `Al corriente ${textoPeriodo}`
             )}
           </span>
         </div>
@@ -230,9 +248,11 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
               {trabajanHoy.length} trabajan · {faltaron} {faltaron === 1 ? "falta" : "faltas"}
             </span>
           </h2>
-          <Link className="boton chico fantasma" href={semanaAnterior}>
-            <IconoAsistencia /> Corregir días anteriores
-          </Link>
+          {!primerDia && (
+            <Link className="boton chico fantasma" href={semanaAnterior}>
+              <IconoAsistencia /> Corregir días anteriores
+            </Link>
+          )}
         </header>
         {trabajanHoy.length === 0 ? (
           <div className="caja">
@@ -366,8 +386,7 @@ export default async function Hoy({ searchParams }: { searchParams: Promise<{ fe
               <IconoAsistencia /> Ver la semana completa
             </Link>
             <p>
-              Les tocaba cobrar y no tienen recibo (últimos {DIAS_PENDIENTES} días, también los de antes de usar la
-              plataforma). Si vino, hazle su recibo; si no, márcale la falta.
+              Les tocaba cobrar y no tienen recibo ({textoPeriodo}). Si vino, hazle su recibo; si no, márcale la falta.
             </p>
           </header>
           <ul className="pendientes">

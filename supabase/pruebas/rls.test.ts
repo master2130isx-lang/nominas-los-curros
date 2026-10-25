@@ -221,3 +221,61 @@ describe("Paridad del cálculo: crear_recibo (BD) = calcularRecibo (pantalla)", 
     expect(conceptos.map((c) => [c.descripcion, Number(c.importe)])).toEqual(previa.lineas.map((l) => [l.descripcion, l.importe]));
   });
 });
+
+describe("Expediente y documentos", () => {
+  it("guarda los campos del expediente y valida RFC y NSS en la base de datos", async () => {
+    await bd.como(ENCARGADA);
+    await bd.query(
+      `update trabajadores set fecha_nacimiento = '1990-05-04', rfc = 'PEPR900504AB1', nss = '12345678901', domicilio = 'Calle 1',
+         contacto_emergencia = 'Hermana', telefono_emergencia = '4890000000', tipo_contrato = 'indeterminado', alimentacion = false
+       where id = $1`,
+      [BETO],
+    );
+    const r = await bd.query("select rfc, nss, tipo_contrato, alimentacion from trabajadores where id = $1", [BETO]);
+    expect(r.rows[0]).toEqual({ rfc: "PEPR900504AB1", nss: "12345678901", tipo_contrato: "indeterminado", alimentacion: false });
+    await bd.query("savepoint s");
+    expect((await error(bd.query("update trabajadores set nss = '123' where id = $1", [BETO]))).code).toBe("23514");
+    await bd.query("rollback to savepoint s");
+  });
+
+  it("el salario diario solo lo cambia el administrador y queda en la bitácora", async () => {
+    await bd.como(ENCARGADA);
+    await bd.query("savepoint s");
+    expect((await error(bd.query("update trabajadores set salario_diario = 400 where id = $1", [BETO]))).message).toMatch(/Solo el administrador/);
+    await bd.query("rollback to savepoint s");
+    await bd.como(ADMIN);
+    await bd.query("update trabajadores set salario_diario = 400 where id = $1", [BETO]);
+    const b = await bd.query("select valor_nuevo from trabajadores_bitacora where trabajador_id = $1 and campo = 'salario_diario'", [BETO]);
+    expect(b.rows[0].valor_nuevo).toBe("400.00");
+  });
+
+  it("los documentos solo se registran en la carpeta del trabajador y no los ve un inactivo", async () => {
+    await bd.como(ENCARGADA);
+    await bd.query("insert into trabajador_documentos (trabajador_id, nombre, ruta) values ($1, 'INE', $2)", [BETO, `documentos/${BETO}/1.jpg`]);
+    await bd.query("savepoint s");
+    expect((await error(bd.query("insert into trabajador_documentos (trabajador_id, nombre, ruta) values ($1, 'X', 'otra/1.jpg')", [BETO]))).code).toBe("23514");
+    await bd.query("rollback to savepoint s");
+    await bd.como(INACTIVO);
+    expect((await bd.query("select count(*)::int as n from trabajador_documentos")).rows[0].n).toBe(0);
+  });
+});
+
+describe("Hoja semanal de los que cobran cada día", () => {
+  it("marca firmados los recibos diarios de esa semana y no toca a los de semana fija", async () => {
+    await bd.como(ENCARGADA);
+    const lunes = "2026-11-02";
+    const d1 = await crearRecibo(BETO, lunes, lunes);
+    const d2 = await crearRecibo(BETO, "2026-11-03", "2026-11-03");
+    const semanal = await crearRecibo(ROSA, "2026-11-01", "2026-11-07");
+    await bd.query("savepoint s");
+    expect((await error(bd.query("select marcar_hoja_semanal($1, 'otra/foto.jpg')", [lunes]))).message).toMatch(/Foto no válida/);
+    await bd.query("rollback to savepoint s");
+    const r = await bd.query("select marcar_hoja_semanal($1, $2) as n", [lunes, `semanas/${lunes}/foto.jpg`]);
+    expect(r.rows[0].n).toBe(2);
+    const estados = await bd.query("select id, estado from recibos where id = any($1)", [[d1.id, d2.id, semanal.id]]);
+    const de = new Map(estados.rows.map((x) => [x.id, x.estado]));
+    expect([de.get(d1.id), de.get(d2.id), de.get(semanal.id)]).toEqual(["firmado", "firmado", "sin_firma"]);
+    await bd.como(INACTIVO);
+    expect((await error(bd.query("select marcar_hoja_semanal($1, $2)", [lunes, `semanas/${lunes}/x.jpg`]))).message).toMatch(/No tienes acceso/);
+  });
+});

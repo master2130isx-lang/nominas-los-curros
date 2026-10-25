@@ -3,11 +3,12 @@ import { Fragment } from "react";
 import { EstadoRecibo } from "@/componentes/EstadoRecibo";
 import { EstadoVacio } from "@/componentes/EstadoVacio";
 import { IconoDerecha, IconoIzquierda } from "@/componentes/Iconos";
-import { esFecha, hoy, semanaDe, sumarDias } from "@/lib/fechas";
+import { desdeInicio, esFecha, fechaInicio, hoy, semanaDe, sumarDias } from "@/lib/fechas";
 import { cantidad, dinero, fechaConDia, folio } from "@/lib/formato";
 import { requerirSesion } from "@/lib/sesion";
 import { grupoPago, textoDiaPago } from "@/lib/programa";
 import { FORMAS_PAGO, TIPOS_TRABAJADOR, UNIDADES, type Recibo, type Trabajador } from "@/lib/tipos";
+import { BotonGuia } from "@/componentes/BotonGuia";
 
 export default async function Semana({
   searchParams,
@@ -16,7 +17,11 @@ export default async function Semana({
 }) {
   const { supabase } = await requerirSesion();
   const { semana } = await searchParams;
-  const { inicio, fin } = semanaDe(esFecha(semana) ? semana : hoy());
+  const arranque = fechaInicio();
+  const { inicio: lunes, fin } = semanaDe(desdeInicio(esFecha(semana) ? semana : hoy(), arranque));
+  // La primera semana empieza el día de implementación, no antes.
+  const inicio = desdeInicio(lunes, arranque);
+  const primeraSemana = lunes <= arranque;
 
   const [{ data: trabajadores }, { data: recibos }] = await Promise.all([
     supabase
@@ -53,16 +58,25 @@ export default async function Semana({
           <span className="antetitulo">
             {fechaConDia(inicio)} al {fechaConDia(fin)} de {fin.slice(0, 4)}
           </span>
-          <h1>Pagos de la semana</h1>
+          <div className="titulo-con-guia">
+            <h1>Pagos de la semana</h1>
+            <BotonGuia apartado="semana" />
+          </div>
         </div>
         <nav className="segmentado" aria-label="Cambiar de semana">
-          <Link href={`/semana?semana=${sumarDias(inicio, -7)}`} aria-label="Semana anterior">
-            <IconoIzquierda /> <span>Anterior</span>
-          </Link>
-          <Link href="/semana" aria-current={inicio === semanaDe(hoy()).inicio ? "true" : undefined}>
+          {primeraSemana ? (
+            <span aria-disabled="true" className="deshabilitado" title="La plataforma empezó esta semana">
+              <IconoIzquierda /> <span>Anterior</span>
+            </span>
+          ) : (
+            <Link href={`/semana?semana=${sumarDias(lunes, -7)}`} aria-label="Semana anterior">
+              <IconoIzquierda /> <span>Anterior</span>
+            </Link>
+          )}
+          <Link href="/semana" aria-current={lunes === semanaDe(hoy()).inicio ? "true" : undefined}>
             Esta semana
           </Link>
-          <Link href={`/semana?semana=${sumarDias(inicio, 7)}`} aria-label="Semana siguiente">
+          <Link href={`/semana?semana=${sumarDias(lunes, 7)}`} aria-label="Semana siguiente">
             <span>Siguiente</span> <IconoDerecha />
           </Link>
         </nav>
@@ -94,6 +108,9 @@ export default async function Semana({
         </Link>
         <Link className="boton" href={`/imprimir?semana=${inicio}`}>
           Imprimir recibos de la semana
+        </Link>
+        <Link className="boton" href={`/imprimir/semanal?semana=${lunes}`}>
+          Hoja semanal para firmar (cobran cada día)
         </Link>
       </div>
 

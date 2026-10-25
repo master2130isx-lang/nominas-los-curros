@@ -10,16 +10,16 @@ test("Alta y edición de trabajador; la encargada no cambia la tarifa y el admin
   await page.goto("/trabajadores/nuevo");
   const nombre = `Nuevo Ficticio ${Date.now()}`;
   await page.getByLabel("Nombre completo").fill(nombre);
-  await page.getByLabel("Tarifa acordada (MXN)").fill("320");
+  await page.getByLabel("Tarifa (MXN)").fill("320");
   await page.getByText("Lun", { exact: true }).click();
   await page.getByRole("button", { name: "Guardar" }).click();
   await page.waitForURL(/\/trabajadores$/);
   await expect(page.getByRole("link", { name: nombre })).toBeVisible();
 
   await page.goto(`/trabajadores/${BETO}`);
-  const tarifa = page.getByLabel("Tarifa acordada (MXN)");
+  const tarifa = page.getByLabel("Tarifa (MXN)");
   await expect(tarifa).toHaveAttribute("readonly", "");
-  await expect(page.getByText("Solo el administrador cambia la tarifa.")).toBeVisible();
+  await expect(page.getByText("Solo el administrador cambia la tarifa y el salario diario.")).toBeVisible();
   await page.getByLabel(/Teléfono/).fill("4890001122");
   await page.getByRole("button", { name: "Guardar" }).click();
   await page.waitForURL(/\/trabajadores$/);
@@ -27,7 +27,7 @@ test("Alta y edición de trabajador; la encargada no cambia la tarifa y el admin
   await page.getByRole("button", { name: "Salir" }).click();
   await entrar(page, "admin@ejemplo.test", "prueba-admin-123");
   await page.goto(`/trabajadores/${BETO}`);
-  await page.getByLabel("Tarifa acordada (MXN)").fill("380");
+  await page.getByLabel("Tarifa (MXN)").fill("380");
   await page.getByRole("button", { name: "Guardar" }).click();
   await page.waitForURL(/\/trabajadores$/);
   await page.goto(`/trabajadores/${BETO}`);

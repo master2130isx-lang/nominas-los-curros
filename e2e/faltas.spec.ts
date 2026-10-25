@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BETO, entrar, limpiar, LUPE, objetivosTactiles, ROSA, sinDesbordeHorizontal, sql, TONO } from "./ayuda";
+import { INICIO_E2E } from "../playwright.config";
 import { LUNES_PASADO, SABADO, sumarDias } from "./fechas";
 
 test.beforeEach(async ({ page }) => {
@@ -147,13 +148,16 @@ test("Editar el tipo de una falta pendiente cambia el descuento del siguiente re
   await expect(page.locator("tbody tr", { hasText: "Rosa Prueba" }).getByText("$1,872.00")).toBeVisible(); // 2,184 − 312
 });
 
-test("Faltas: ?trabajador=abc avisa en lugar de mostrar una lista vacía, y se ven faltas de hace más de 90 días", async ({ page }) => {
+test("Faltas: ?trabajador=abc avisa; el filtro por rango llega hasta el inicio de la plataforma y no más atrás", async ({ page }) => {
   await page.goto("/faltas?trabajador=abc");
   await expect(page.locator(".alerta[role=alert]")).toContainText("no es válido");
-  await sql(`insert into faltas (trabajador_id, fecha, tipo, creado_por) values ('${BETO}', current_date - 200, 'justificada', '00000000-0000-4000-8000-0000000000e1')`);
-  await page.goto("/faltas");
-  await page.getByRole("link", { name: "Ver todo el último año" }).click();
+  await sql(`insert into faltas (trabajador_id, fecha, tipo, creado_por) values
+    ('${BETO}', '${INICIO_E2E}', 'justificada', '00000000-0000-4000-8000-0000000000e1'),
+    ('${LUPE}', '${sumarDias(INICIO_E2E, -3)}', 'justificada', '00000000-0000-4000-8000-0000000000e1')`);
+  await page.goto(`/faltas?desde=${sumarDias(INICIO_E2E, -30)}`);
+  await expect(page.getByLabel("Desde")).toHaveValue(INICIO_E2E);
   await expect(page.locator("tbody tr", { hasText: "Beto Ejemplo" })).toHaveCount(1);
+  await expect(page.locator("tbody tr", { hasText: "Lupe Demo" })).toHaveCount(0);
   await sinDesbordeHorizontal(page);
   await objetivosTactiles(page);
 });

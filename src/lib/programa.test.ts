@@ -15,6 +15,7 @@ import {
   reciboQueCubre,
   textoDias,
 } from "./programa";
+import { desdeInicio } from "./fechas";
 
 const semanal = { id: "s", forma_pago: "semana" as const, pago_cuando: "dia_semana" as const, pago_dia_semana: 2, dias_trabajo: [1, 2, 4, 5, 6, 7] };
 const diaria = { id: "d", forma_pago: "dia" as const, pago_cuando: "cada_dia" as const, pago_dia_semana: null, dias_trabajo: [6, 7] };
@@ -123,5 +124,18 @@ describe("pendientes para ponerse al corriente", () => {
     expect(tonoAvatar("Ana")).toBe(tonoAvatar("Ana"));
     expect(tonoAvatar("Ana")).toBeGreaterThanOrEqual(0);
     expect(tonoAvatar("Ana")).toBeLessThan(4);
+  });
+});
+
+describe("fecha de implementación", () => {
+  it("no cuenta pendientes de antes del inicio de la plataforma", () => {
+    const todos = [1, 2, 3, 4, 5, 6, 7];
+    const p = pendientesAnteriores([{ ...diaria, dias_trabajo: todos, desde: "2026-10-21" }], [], "2026-10-24");
+    expect(p.map((x) => x.fecha)).toEqual(["2026-10-23", "2026-10-22", "2026-10-21"]);
+  });
+
+  it("recorta cualquier fecha anterior al inicio", () => {
+    expect(desdeInicio("2026-10-20", "2026-10-24")).toBe("2026-10-24");
+    expect(desdeInicio("2026-10-30", "2026-10-24")).toBe("2026-10-30");
   });
 });

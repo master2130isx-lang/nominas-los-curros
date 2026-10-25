@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { traducirError } from "@/lib/errores";
-import { esFecha } from "@/lib/fechas";
+import { esFecha, errorAntesDeInicio } from "@/lib/fechas";
 import { folio as fmtFolio } from "@/lib/formato";
 import { requerirSesion } from "@/lib/sesion";
 import { TIPOS_FALTA, type TipoFalta } from "@/lib/tipos";
@@ -37,6 +37,8 @@ export async function anotarFalta(_previo: EstadoFalta, form: FormData): Promise
   if (!trabajadorId) return { error: "Escoge al trabajador.", ok: false };
   if (!esUuid(trabajadorId)) return { error: "El trabajador no es válido. Vuelve a escogerlo.", ok: false };
   if (!esFecha(fecha)) return { error: "La fecha no es válida.", ok: false };
+  const antes = errorAntesDeInicio(fecha);
+  if (antes) return { error: antes, ok: false };
   if (!tipo) return { error: "Escoge el tipo de falta.", ok: false };
 
   // Si ya hay un recibo vigente que cubre ese día, la falta nunca se descontaría:

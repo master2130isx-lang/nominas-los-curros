@@ -31,7 +31,7 @@ describe("anotarFalta", () => {
       l.tabla === "recibos" ? { data: { id: RECIBO, folio: 12 }, error: null } : undefined,
     );
     sesion.cliente = cliente;
-    const r = await anotarFalta(inicial, formulario({ trabajador_id: TRABAJADOR, fecha: "2026-10-10", tipo: "sin_aviso" }));
+    const r = await anotarFalta(inicial, formulario({ trabajador_id: TRABAJADOR, fecha: "2026-10-26", tipo: "sin_aviso" }));
     expect(r.ok).toBe(false);
     expect(r.error).toContain("folio 0012");
     expect(r.recibo).toEqual({ id: RECIBO, folio: "0012" });
@@ -42,8 +42,8 @@ describe("anotarFalta", () => {
       expect.arrayContaining([
         ["eq", "trabajador_id", TRABAJADOR],
         ["neq", "estado", "cancelado"],
-        ["lte", "periodo_inicio", "2026-10-10"],
-        ["gte", "periodo_fin", "2026-10-10"],
+        ["lte", "periodo_inicio", "2026-10-26"],
+        ["gte", "periodo_fin", "2026-10-26"],
       ]),
     );
   });
@@ -53,18 +53,26 @@ describe("anotarFalta", () => {
     sesion.cliente = cliente;
     const r = await anotarFalta(
       inicial,
-      formulario({ trabajador_id: TRABAJADOR, fecha: "2026-10-10", tipo: "sin_goce", media: "on", nota: " cita " }),
+      formulario({ trabajador_id: TRABAJADOR, fecha: "2026-10-26", tipo: "sin_goce", media: "on", nota: " cita " }),
     );
     expect(r).toEqual({ error: null, ok: true });
-    expect(insertos(llamadas)[0].datos).toEqual({ trabajador_id: TRABAJADOR, fecha: "2026-10-10", tipo: "sin_goce", fraccion: 0.5, nota: "cita" });
+    expect(insertos(llamadas)[0].datos).toEqual({ trabajador_id: TRABAJADOR, fecha: "2026-10-26", tipo: "sin_goce", fraccion: 0.5, nota: "cita" });
   });
 
   it("valida el trabajador como uuid, la fecha y el tipo antes de tocar la base de datos", async () => {
     const { cliente, llamadas } = supabaseFalso();
     sesion.cliente = cliente;
-    expect((await anotarFalta(inicial, formulario({ trabajador_id: "abc", fecha: "2026-10-10", tipo: "sin_aviso" }))).error).toMatch(/no es válido/);
-    expect((await anotarFalta(inicial, formulario({ trabajador_id: TRABAJADOR, fecha: "2026-02-30", tipo: "sin_aviso" }))).error).toMatch(/fecha/);
-    expect((await anotarFalta(inicial, formulario({ trabajador_id: TRABAJADOR, fecha: "2026-10-10" }))).error).toMatch(/tipo/);
+    expect((await anotarFalta(inicial, formulario({ trabajador_id: "abc", fecha: "2026-10-26", tipo: "sin_aviso" }))).error).toMatch(/no es válido/);
+    expect((await anotarFalta(inicial, formulario({ trabajador_id: TRABAJADOR, fecha: "2026-11-31", tipo: "sin_aviso" }))).error).toMatch(/fecha/);
+    expect((await anotarFalta(inicial, formulario({ trabajador_id: TRABAJADOR, fecha: "2026-10-26" }))).error).toMatch(/tipo/);
+    expect(llamadas).toHaveLength(0);
+  });
+
+  it("rechaza días anteriores al inicio de la plataforma", async () => {
+    const { cliente, llamadas } = supabaseFalso();
+    sesion.cliente = cliente;
+    const r = await anotarFalta(inicial, formulario({ trabajador_id: TRABAJADOR, fecha: "2026-10-20", tipo: "sin_aviso" }));
+    expect(r.error).toMatch(/no se capturan días anteriores/);
     expect(llamadas).toHaveLength(0);
   });
 
@@ -75,7 +83,7 @@ describe("anotarFalta", () => {
         : undefined,
     );
     sesion.cliente = cliente;
-    const r = await anotarFalta(inicial, formulario({ trabajador_id: TRABAJADOR, fecha: "2026-10-10", tipo: "justificada" }));
+    const r = await anotarFalta(inicial, formulario({ trabajador_id: TRABAJADOR, fecha: "2026-10-26", tipo: "justificada" }));
     expect(r.error).toBe("Ya hay una falta anotada ese día para este trabajador.");
   });
 });

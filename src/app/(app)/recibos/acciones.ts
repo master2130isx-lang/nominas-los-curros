@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { traducirError } from "@/lib/errores";
-import { esFecha } from "@/lib/fechas";
+import { esFecha, errorAntesDeInicio } from "@/lib/fechas";
 import { requerirSesion } from "@/lib/sesion";
 import { esUuid } from "@/lib/validacion";
 
@@ -37,6 +37,8 @@ export async function crearRecibo(_previo: EstadoFormulario, form: FormData): Pr
     return { error: "Revisa las fechas del periodo y del pago." };
   }
   if (datos.periodoFin < datos.periodoInicio) return { error: "El periodo termina antes de empezar." };
+  const antes = errorAntesDeInicio(datos.periodoInicio) ?? errorAntesDeInicio(datos.fechaPago);
+  if (antes) return { error: antes };
   if (!(datos.cantidad > 0)) return { error: "Escribe cuánto se trabajó (mayor a cero)." };
   if (!(Number(datos.abono) >= 0)) return { error: "El abono no puede ser negativo." };
 
@@ -117,6 +119,8 @@ export async function crearLote(_previo: EstadoLote, form: FormData): Promise<Es
     if (!esUuid(f.trabajadorId) || ![f.periodoInicio, f.periodoFin, f.fechaPago].every(esFecha) || !(f.cantidad > 0)) {
       return { error: "Revisa las cantidades.", creados: ids.length };
     }
+    const antes = errorAntesDeInicio(f.periodoInicio) ?? errorAntesDeInicio(f.fechaPago);
+    if (antes) return { error: antes, creados: ids.length };
     const { data, error } = await supabase
       .rpc("crear_recibo", {
         p_trabajador_id: f.trabajadorId,
@@ -134,4 +138,15 @@ export async function crearLote(_previo: EstadoLote, form: FormData): Promise<Es
   }
   revalidatePath("/");
   redirect(`/imprimir?ids=${ids.join(",")}`);
+}
+
+/** La hoja semanal firmada de quienes cobran cada día: marca firmados sus recibos de esa semana. */
+export async function marcarHojaSemanal(lunes: string, ruta: string): Promise<{ error: string | null; marcados: number }> {
+  const { supabase } = await requerirSesion();
+  if (!esFecha(lunes) || !ruta.startsWith(`semanas/${lunes}/`)) return { error: "Foto no válida.", marcados: 0 };
+  const { data, error } = await supabase.rpc("marcar_hoja_semanal", { p_inicio: lunes, p_foto_path: ruta });
+  if (error) return { error: traducirError(error, "No se pudo marcar la hoja como firmada."), marcados: 0 };
+  revalidatePath("/");
+  revalidatePath("/semana");
+  return { error: null, marcados: Number(data) || 0 };
 }
