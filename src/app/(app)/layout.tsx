@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MenuNav } from "@/componentes/MenuNav";
 import { requerirSesion } from "@/lib/sesion";
 import { salir } from "../login/acciones";
@@ -6,15 +7,23 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   const { perfil } = await requerirSesion();
   return (
     <div className="app">
+      <a className="saltar" href="#contenido">
+        Saltar al contenido
+      </a>
       <aside className="menu">
-        <div className="marca">
-          <strong>Los Curros</strong>
-          <span>Nóminas y recibos</span>
-        </div>
+        <Link href="/" className="marca" style={{ color: "inherit", textDecoration: "none" }}>
+          <span className="sello-marca" aria-hidden="true">
+            LC
+          </span>
+          <span className="nombre-marca">
+            <strong>Los Curros</strong>
+            <span className="lema">Nóminas y recibos</span>
+          </span>
+        </Link>
         <MenuNav />
         <div className="usuario">
           <span>
-            {perfil.nombre} · {perfil.rol === "admin" ? "Administrador" : "Encargado"}
+            <strong>{perfil.nombre}</strong> · {perfil.rol === "admin" ? "Administrador" : "Encargado"}
           </span>
           <form action={salir}>
             <button type="submit" className="boton chico">
@@ -23,7 +32,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
           </form>
         </div>
       </aside>
-      <main className="contenido">{children}</main>
+      <main className="contenido" id="contenido" tabIndex={-1}>
+        {children}
+      </main>
     </div>
   );
 }

@@ -1,18 +1,27 @@
+import { BotonEnviar } from "@/componentes/BotonEnviar";
 import { salir } from "../login/acciones";
 
 export default function SinAcceso() {
   return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 16 }}>
-      <div className="caja relleno formulario" style={{ maxWidth: 420 }}>
-        <h1>Sin acceso</h1>
+    <main className="entrada">
+      <div className="caja relleno formulario">
+        <div className="marca-entrada">
+          <span className="sello-marca" aria-hidden="true">
+            LC
+          </span>
+          <div>
+            <h1>Sin acceso</h1>
+            <p>Nóminas Los Curros</p>
+          </div>
+        </div>
         <p style={{ margin: 0 }}>
-          Tu cuenta existe, pero todavía no tiene permiso para usar la plataforma. Pídele al
-          administrador que te dé de alta.
+          Tu cuenta existe, pero todavía no tiene permiso para usar la plataforma. Pídele al administrador que te dé de
+          alta.
         </p>
         <form action={salir}>
-          <button className="boton" type="submit">
+          <BotonEnviar className="boton" ocupado="Saliendo…">
             Salir
-          </button>
+          </BotonEnviar>
         </form>
       </div>
     </main>

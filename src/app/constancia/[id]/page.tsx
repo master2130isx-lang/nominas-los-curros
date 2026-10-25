@@ -10,6 +10,7 @@ import { requerirSesion } from "@/lib/sesion";
 import { FORMAS_PAGO, type Trabajador } from "@/lib/tipos";
 import { BotonImprimirSimple } from "./BotonImprimirSimple";
 
+
 function listaDias(dias: number[]): string {
   const nombres = [...dias].sort((a, b) => a - b).map((d) => DIAS_SEMANA[d - 1]);
   if (nombres.length === 7) return "todos los días de la semana";

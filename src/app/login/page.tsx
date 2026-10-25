@@ -1,3 +1,4 @@
+import { BotonEnviar } from "@/componentes/BotonEnviar";
 import { entrar } from "./acciones";
 
 export default async function Login({
@@ -7,26 +8,38 @@ export default async function Login({
 }) {
   const { error } = await searchParams;
   return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 16 }}>
-      <form action={entrar} className="caja relleno formulario" style={{ width: "100%", maxWidth: 380 }}>
-        <div>
-          <h1>Los Curros</h1>
-          <p className="sub" style={{ margin: "4px 0 0", color: "var(--tenue)" }}>
-            Nóminas y recibos
-          </p>
+    <main className="entrada">
+      <form action={entrar} className="caja relleno formulario">
+        <div className="marca-entrada">
+          <span className="sello-marca" aria-hidden="true">
+            LC
+          </span>
+          <div>
+            <h1>Los Curros</h1>
+            <p>Nóminas y recibos</p>
+          </div>
         </div>
-        {error && <p className="alerta">El correo o la contraseña no son correctos.</p>}
+        {error && (
+          <p className="alerta" role="alert">
+            El correo o la contraseña no son correctos.
+          </p>
+        )}
         <div className="campo">
           <label htmlFor="correo">Correo</label>
-          <input id="correo" name="correo" type="email" autoComplete="email" required />
+          <input id="correo" name="correo" type="email" autoComplete="email" required aria-invalid={error ? true : undefined} />
         </div>
         <div className="campo">
           <label htmlFor="contrasena">Contraseña</label>
-          <input id="contrasena" name="contrasena" type="password" autoComplete="current-password" required />
+          <input
+            id="contrasena"
+            name="contrasena"
+            type="password"
+            autoComplete="current-password"
+            required
+            aria-invalid={error ? true : undefined}
+          />
         </div>
-        <button type="submit" className="boton primario">
-          Entrar
-        </button>
+        <BotonEnviar ocupado="Entrando…">Entrar</BotonEnviar>
       </form>
     </main>
   );
